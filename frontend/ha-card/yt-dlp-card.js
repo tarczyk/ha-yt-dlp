@@ -507,6 +507,7 @@ class YtDlpCardEditor extends HTMLElement {
 
   _fire() {
     const config = {
+      type: "custom:yt-dlp-card",
       api_url: this.querySelector("#api_url").value.trim() || DEFAULT_API_URL,
       title: this.querySelector("#title").value.trim() || DEFAULT_TITLE,
       max_tasks: parseInt(this.querySelector("#max_tasks").value, 10) || DEFAULT_MAX_TASKS,
