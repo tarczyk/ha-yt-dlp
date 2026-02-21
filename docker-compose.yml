@@ -1,6 +1,7 @@
 services:
   yt-dlp:
     image: tarczyk/yt-dlp-ha-docker:latest
+    build: .
     container_name: yt-dlp-ha
     restart: unless-stopped
     ports:

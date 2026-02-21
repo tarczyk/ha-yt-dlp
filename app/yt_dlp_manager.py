@@ -7,6 +7,10 @@ def download_video(url: str, output_dir: str = "/config/media", timeout: int = 1
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "quiet": True,
         "socket_timeout": timeout,
+        # Prefer MP4 for better compatibility (HA Media Browser, TVs, phones).
+        # Without this, yt-dlp defaults to "best" and YouTube often serves WebM (VP9).
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best",
+        "merge_output_format": "mp4",
         # Keep yt-dlp's cache in /tmp so it works even when the container runs
         # as a non-root user without a writable home directory.
         "cachedir": "/tmp/yt-dlp",
