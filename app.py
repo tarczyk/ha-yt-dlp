@@ -15,32 +15,30 @@ def health():
 
 @app.route("/download", methods=["POST"])
 def download():
-    data = request.get_json()
-    if not data or "url" not in data:
+    data = request.get_json(silent=True) or {}
+    url = data.get("url", "").strip()
+    if not url:
         return jsonify({"error": "url is required"}), 400
-
-    url = data["url"]
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+    if not _URL_RE.match(url):
         return jsonify({"error": "invalid url"}), 400
 
-    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    result = subprocess.run(
+        ["yt-dlp", "--no-playlist", "-o", f"{DOWNLOAD_DIR}/%(title)s.%(ext)s", url],
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if result.returncode != 0:
+        logger.error("yt-dlp error: %s", result.stderr)
+        return jsonify({"error": "download failed"}), 500
 
-    try:
-        result = subprocess.run(
-            ["yt-dlp", "-o", f"{DOWNLOAD_DIR}/%(title)s.%(ext)s", url],
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
-        if result.returncode == 0:
-            return jsonify({"status": "success", "output": result.stdout})
-        return jsonify({"error": result.stderr}), 500
-    except subprocess.TimeoutExpired:
-        return jsonify({"error": "download timed out"}), 504
-    except FileNotFoundError:
-        return jsonify({"error": "yt-dlp not found"}), 500
+    return jsonify({"status": "ok", "output": result.stdout}), 200
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok"}), 200
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=5000)
