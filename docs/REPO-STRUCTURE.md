@@ -1,5 +1,7 @@
 # Repository structure & principal engineer review
 
+**Versioning:** Git tag and add-on version must match. When releasing, set `version` in `yt-dlp-api/config.yaml` (e.g. `"1.0.8"`), then tag that commit as `v1.0.8` (e.g. `git tag v1.0.8 && git push origin v1.0.8`).
+
 ## Current layout (Option A implemented)
 
 ```

@@ -30,6 +30,17 @@ def test_download_video_invalid_url_400(client):
     assert "error" in data
 
 
+def test_download_video_playlist_url_400(client):
+    response = client.post(
+        "/download_video",
+        json={"url": "https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf"},
+    )
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "error" in data
+    assert "playlist" in data["error"].lower()
+
+
 def test_tasks_list(client):
     response = client.get("/tasks")
     assert response.status_code == 200
@@ -62,3 +73,16 @@ def test_files_list(client):
     assert response.status_code == 200
     data = response.get_json()
     assert isinstance(data, list)
+
+
+def test_task_cancel(client):
+    with patch("app.api._run_download"):
+        post_resp = client.post(
+            "/download_video",
+            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+        )
+    task_id = post_resp.get_json()["task_id"]
+    response = client.delete(f"/tasks/{task_id}")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("status") == "cancelling"

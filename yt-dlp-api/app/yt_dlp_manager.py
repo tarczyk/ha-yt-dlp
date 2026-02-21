@@ -1,7 +1,12 @@
 import logging
 import sys
+from typing import Callable
 
 import yt_dlp
+
+
+class DownloadCancelledError(Exception):
+    """Raised when the user cancels the download via API."""
 
 
 def _yt_dlp_logger():
@@ -15,13 +20,27 @@ def _yt_dlp_logger():
     return log
 
 
-def download_video(url: str, output_dir: str = "/config/media", timeout: int = 1800) -> dict:
-    """Download a video using yt-dlp and return info dict."""
+def download_video(
+    url: str,
+    output_dir: str = "/config/media",
+    timeout: int = 1800,
+    stop_check: Callable[[], bool] | None = None,
+) -> dict:
+    """Download a video using yt-dlp and return info dict.
+    If stop_check is provided and returns True during download, raises DownloadCancelledError.
+    """
+    def progress_hook(d: dict) -> None:
+        if stop_check and stop_check():
+            raise DownloadCancelledError("Cancelled by user")
+
     ydl_opts = {
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "quiet": True,
         "logger": _yt_dlp_logger(),
         "socket_timeout": timeout,
+        "progress_hooks": [progress_hook],
+        # When URL has both v= and list= (e.g. watch?v=XXX&list=RD...), download only this video.
+        "noplaylist": True,
         # Prefer MP4 for better compatibility (HA Media Browser, TVs, phones).
         # Without this, yt-dlp defaults to "best" and YouTube often serves WebM (VP9).
         "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best",

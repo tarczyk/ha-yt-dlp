@@ -20,6 +20,7 @@ const STATUS_COLORS = {
   completed: "#4caf50",
   error: "#f44336",
   failed: "#f44336",
+  cancelled: "#9e9e9e",
 };
 
 const STATUS_LABELS = {
@@ -29,6 +30,7 @@ const STATUS_LABELS = {
   completed: "Completed",
   error: "Failed",
   failed: "Failed",
+  cancelled: "Cancelled",
 };
 
 const STYLES = `
@@ -166,6 +168,19 @@ const STYLES = `
   .media-link:hover {
     text-decoration: underline;
   }
+  .btn-cancel {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    border: 1px solid var(--divider-color, #e0e0e0);
+    border-radius: 6px;
+    background: var(--card-background-color, #fff);
+    color: var(--primary-text-color);
+    cursor: pointer;
+  }
+  .btn-cancel:hover {
+    background: #ffebee;
+    color: #c62828;
+  }
   .empty-state {
     text-align: center;
     padding: 20px 0;
@@ -230,6 +245,31 @@ class YtDlpCard extends HTMLElement {
     return `${this._config.api_url}${path}`;
   }
 
+  _isPlaylistUrl(url) {
+    try {
+      const u = new URL(url.trim());
+      if (!u.hostname.includes("youtube.com")) return false;
+      if (u.pathname.includes("/playlist")) return true;
+      return u.searchParams.has("list") && !u.searchParams.has("v");
+    } catch {
+      return false;
+    }
+  }
+
+  /** For watch?v=XXX&list=... URLs, return only watch?v=XXX so only one video is requested. */
+  _toSingleVideoUrl(url) {
+    try {
+      const u = new URL(url.trim());
+      if (u.pathname !== "/watch" || !u.searchParams.has("v")) return url.trim();
+      const v = u.searchParams.get("v");
+      u.search = "";
+      u.searchParams.set("v", v);
+      return u.toString();
+    } catch {
+      return url.trim();
+    }
+  }
+
   async _fetchApiConfig() {
     try {
       const resp = await fetch(this._apiUrl("/config"));
@@ -273,6 +313,15 @@ class YtDlpCard extends HTMLElement {
   async _handleDownload() {
     const url = this._url.trim();
     if (!url) return;
+    if (this._isPlaylistUrl(url)) {
+      this._message = {
+        type: "error",
+        text: "Playlist links are not allowed. Use a single video URL (e.g. youtube.com/watch?v=…).",
+      };
+      this._render();
+      return;
+    }
+    const urlToSend = this._toSingleVideoUrl(url);
     this._busy = true;
     this._message = null;
     this._render();
@@ -280,7 +329,7 @@ class YtDlpCard extends HTMLElement {
       const resp = await fetch(this._apiUrl("/download_video"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: urlToSend }),
       });
       const data = await resp.json();
       if (!resp.ok) {
@@ -297,8 +346,16 @@ class YtDlpCard extends HTMLElement {
     this._render();
   }
 
+  async _handleCancel(taskId) {
+    try {
+      const resp = await fetch(this._apiUrl(`/tasks/${taskId}`), { method: "DELETE" });
+      if (resp.ok) await this._fetchTasks();
+    } catch (_e) {}
+    this._render();
+  }
+
   _progressForStatus(status) {
-    const map = { queued: 5, running: 50, processing: 50, completed: 100, error: 100, failed: 100 };
+    const map = { queued: 5, running: 50, processing: 50, completed: 100, error: 100, failed: 100, cancelled: 100 };
     return map[status] || 0;
   }
 
@@ -378,6 +435,8 @@ class YtDlpCard extends HTMLElement {
       const label = STATUS_LABELS[status] || status;
       const progress = this._progressForStatus(status);
       const isActive = status === "running" || status === "processing";
+      const canCancel = status === "queued" || status === "running" || status === "processing";
+      const taskId = t.task_id || "";
 
       const progressBar = `
         <div class="progress-bar-wrap">
@@ -385,11 +444,13 @@ class YtDlpCard extends HTMLElement {
         </div>
       `;
 
-      const mediaCell = status === "completed"
-        ? `<a class="media-link" href="#" data-task-id="${this._esc(t.task_id || "")}" data-title="${this._esc(t.title || "")}">
+      const actionCell = status === "completed"
+        ? `<a class="media-link" href="#" data-task-id="${this._esc(taskId)}" data-title="${this._esc(t.title || "")}">
             📂 Open
            </a>`
-        : "—";
+        : canCancel
+          ? `<button type="button" class="btn-cancel" data-task-id="${this._esc(taskId)}">Stop</button>`
+          : "—";
 
       return `
         <tr>
@@ -398,7 +459,7 @@ class YtDlpCard extends HTMLElement {
             <span class="status-badge" style="background:${color}">${this._esc(label)}</span>
             ${progressBar}
           </td>
-          <td>${mediaCell}</td>
+          <td>${actionCell}</td>
         </tr>
       `;
     }).join("");
@@ -409,7 +470,7 @@ class YtDlpCard extends HTMLElement {
           <tr>
             <th>Title / URL</th>
             <th>Status</th>
-            <th>Media</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -424,6 +485,12 @@ class YtDlpCard extends HTMLElement {
       link.addEventListener("click", (e) => {
         e.preventDefault();
         this._openMediaBrowser(link.dataset.title || "");
+      });
+    });
+    root.querySelectorAll(".btn-cancel").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const taskId = btn.dataset.taskId;
+        if (taskId) this._handleCancel(taskId);
       });
     });
   }

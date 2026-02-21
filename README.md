@@ -113,9 +113,10 @@ curl -X POST http://localhost:5000/download_video \
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/health` | Health check; `{"status": "healthy"}`. |
-| `POST` | `/download_video` | Start async download; body `{"url": "..."}`; returns `{"status": "processing", "task_id": "..."}`. |
-| `GET` | `/tasks` | List all tasks. |
+| `POST` | `/download_video` | Start async download; body `{"url": "..."}`; returns `{"status": "processing", "task_id": "..."}`. **Playlist URLs are rejected** (400). |
+| `GET` | `/tasks` | List all tasks (each includes `task_id` for cancel). |
 | `GET` | `/tasks/<task_id>` | Status of one task. |
+| `DELETE` | `/tasks/<task_id>` | Cancel a queued or running task. |
 | `GET` | `/files` | List files in the media directory. |
 
 **`POST /download_video`**
