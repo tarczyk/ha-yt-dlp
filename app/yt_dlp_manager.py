@@ -1,4 +1,18 @@
+import logging
+import sys
+
 import yt_dlp
+
+
+def _yt_dlp_logger():
+    """Logger that writes yt-dlp messages to stderr so they appear in addon logs."""
+    log = logging.getLogger("yt-dlp")
+    log.setLevel(logging.DEBUG)
+    if not log.handlers:
+        h = logging.StreamHandler(sys.stderr)
+        h.setFormatter(logging.Formatter("%(message)s"))
+        log.addHandler(h)
+    return log
 
 
 def download_video(url: str, output_dir: str = "/config/media", timeout: int = 1800) -> dict:
@@ -6,6 +20,7 @@ def download_video(url: str, output_dir: str = "/config/media", timeout: int = 1
     ydl_opts = {
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "quiet": True,
+        "logger": _yt_dlp_logger(),
         "socket_timeout": timeout,
         # Prefer MP4 for better compatibility (HA Media Browser, TVs, phones).
         # Without this, yt-dlp defaults to "best" and YouTube often serves WebM (VP9).
@@ -15,7 +30,7 @@ def download_video(url: str, output_dir: str = "/config/media", timeout: int = 1
         # as a non-root user without a writable home directory.
         "cachedir": "/tmp/yt-dlp",
         # Explicit JS runtime for EJS (n-sig challenge). Image has Node and Deno; Node is reliable in Alpine.
-        "js_runtimes": "node",
+        "js_runtimes": {"node": {}},
         # Fetch EJS scripts from GitHub if bundled yt-dlp-ejs is missing/outdated (n-sig solving).
         "remote_components": ["ejs:github"],
         # Prefer web clients to avoid YouTube's DRM-on-tv experiment (issue #12563).
