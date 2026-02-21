@@ -120,6 +120,21 @@ curl -X POST http://localhost:5000/download_video \
 | `400` | `{"error": "..."}` | Missing or invalid request body |
 
 
+## 🔌 Chrome Extension
+
+A Manifest V3 Chrome extension lives in [`chrome-ext/`](chrome-ext/).
+
+**Quick start:**
+
+1. Open `chrome://extensions/` and enable **Developer mode**
+2. Click **Load unpacked** → select the `chrome-ext/` folder
+3. Enter your HA API URL in **⚙ Settings** (e.g. `http://192.168.1.100:5000`)
+4. Go to any YouTube video page, click the extension icon, hit **Download to HA** → live status → ✅ Done!
+
+See [`chrome-ext/README-chrome.md`](chrome-ext/README-chrome.md) for full documentation.
+
+---
+
 ## 🎨 HA Lovelace Card
 
 A HACS-ready Lovelace card that connects directly to the ha-yt-dlp API.
