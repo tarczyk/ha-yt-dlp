@@ -29,7 +29,7 @@ def download_video(url: str, output_dir: str = "/config/media", timeout: int = 1
         # Keep yt-dlp's cache in /tmp so it works even when the container runs
         # as a non-root user without a writable home directory.
         "cachedir": "/tmp/yt-dlp",
-        # Explicit JS runtime for EJS (n-sig challenge). Image has Node and Deno; Node is reliable in Alpine.
+        # Explicit JS runtime for EJS (n-sig challenge). Image has Node and Deno.
         "js_runtimes": {"node": {}},
         # Fetch EJS scripts from GitHub if bundled yt-dlp-ejs is missing/outdated (n-sig solving).
         "remote_components": ["ejs:github"],
