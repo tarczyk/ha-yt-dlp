@@ -1,16 +1,17 @@
-FROM python:3.12-slim
+FROM node:20-alpine
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache python3 py3-pip ffmpeg && \
+    pip3 install --break-system-packages yt-dlp
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY package*.json ./
+RUN npm install --omit=dev
 
-COPY app.py .
+COPY . .
 
-EXPOSE 8080
+RUN mkdir -p /media/youtube_downloads
 
-CMD ["python", "app.py"]
+EXPOSE 3000
+
+CMD ["node", "server.js"]
