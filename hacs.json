@@ -1,0 +1,5 @@
+{
+  "name": "yt-dlp Downloader Card",
+  "filename": "ha-yt-dlp.js",
+  "render_readme": true
+}
