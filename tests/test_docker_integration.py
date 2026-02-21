@@ -23,7 +23,10 @@ _CONTAINER_NAME = "yt-dlp-ha-integ"
 _HOST_PORT = 15000
 _BASE_URL = f"http://127.0.0.1:{_HOST_PORT}"
 
-# "Me at the zoo" – first YouTube video, ~19 seconds, reliably available.
+# "Me at the zoo" – first YouTube video, ~19 seconds.
+# The `tv` player client (configured in yt_dlp_manager.py) + the `yt-dlp-ejs`
+# Node.js EJS solver bypass YouTube's "Sign in to confirm you're not a bot"
+# detection that affects headless/CI environments.
 _SAMPLE_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
