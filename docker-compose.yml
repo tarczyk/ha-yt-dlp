@@ -1,0 +1,19 @@
+services:
+  yt-dlp-api:
+    build: .
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - /media/youtube_downloads:/media/youtube_downloads
+    tmpfs:
+      - /tmp
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+    user: "1000:1000"
+    restart: unless-stopped
