@@ -1,0 +1,22 @@
+services:
+  yt-dlp-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: yt-dlp-ha-api:latest
+    container_name: yt-dlp-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      - DOWNLOAD_DIR=${DOWNLOAD_DIR:-/media/youtube_downloads}
+      - YT_DLP_EXTRA_ARGS=${YT_DLP_EXTRA_ARGS:-}
+      - PORT=8080
+    volumes:
+      - ${DOWNLOAD_DIR:-/media/youtube_downloads}:/media/youtube_downloads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
