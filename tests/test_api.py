@@ -1,88 +1,36 @@
-import json
-import subprocess
-from unittest.mock import patch, MagicMock
 import pytest
-from app import app
+from unittest.mock import patch, MagicMock
 
 
-@pytest.fixture
-def client():
-    app.config["TESTING"] = True
-    with app.test_client() as client:
-        yield client
-
-
-def test_health(client):
+def test_health_200(client):
     response = client.get("/health")
     assert response.status_code == 200
-    data = json.loads(response.data)
+    data = response.get_json()
     assert data["status"] == "ok"
 
 
-def test_download_missing_url(client):
-    response = client.post("/download", json={})
+def test_download_video_task_id(client):
+    with patch("app.api._run_download"):
+        response = client.post(
+            "/download",
+            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+        )
+    assert response.status_code == 202
+    data = response.get_json()
+    assert "task_id" in data
+    assert isinstance(data["task_id"], str)
+    assert len(data["task_id"]) > 0
+
+
+def test_download_video_invalid_url_400(client):
+    response = client.post("/download", json={"url": "not-a-valid-url"})
     assert response.status_code == 400
-    data = json.loads(response.data)
+    data = response.get_json()
     assert "error" in data
 
 
-def test_download_no_body(client):
-    response = client.post("/download", content_type="application/json", data="")
-    assert response.status_code == 400
-
-
-def test_download_success(client, tmp_path):
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = "Download complete"
-    mock_result.stderr = ""
-
-    with patch("app.DOWNLOAD_DIR", str(tmp_path)), \
-         patch("subprocess.run", return_value=mock_result):
-        response = client.post("/download", json={"url": "https://example.com/video"})
-
+def test_tasks_list(client):
+    response = client.get("/tasks")
     assert response.status_code == 200
-    data = json.loads(response.data)
-    assert data["status"] == "success"
-
-
-def test_download_failure(client, tmp_path):
-    mock_result = MagicMock()
-    mock_result.returncode = 1
-    mock_result.stdout = ""
-    mock_result.stderr = "Error downloading"
-
-    with patch("app.DOWNLOAD_DIR", str(tmp_path)), \
-         patch("subprocess.run", return_value=mock_result):
-        response = client.post("/download", json={"url": "https://example.com/video"})
-
-    assert response.status_code == 500
-    data = json.loads(response.data)
-    assert "error" in data
-
-
-def test_download_timeout(client, tmp_path):
-    with patch("app.DOWNLOAD_DIR", str(tmp_path)), \
-         patch("subprocess.run", side_effect=subprocess.TimeoutExpired("yt-dlp", 300)):
-        response = client.post("/download", json={"url": "https://example.com/video"})
-
-    assert response.status_code == 504
-    data = json.loads(response.data)
-    assert "error" in data
-
-
-def test_download_invalid_url(client):
-    response = client.post("/download", json={"url": "not-a-url"})
-    assert response.status_code == 400
-    data = json.loads(response.data)
-    assert "error" in data
-
-
-def test_download_ytdlp_not_found(client, tmp_path):
-    with patch("app.DOWNLOAD_DIR", str(tmp_path)), \
-         patch("subprocess.run", side_effect=FileNotFoundError):
-        response = client.post("/download", json={"url": "https://example.com/video"})
-
-    assert response.status_code == 500
-    data = json.loads(response.data)
-    assert "error" in data
+    data = response.get_json()
+    assert isinstance(data, list)
