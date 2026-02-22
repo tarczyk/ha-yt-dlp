@@ -24,7 +24,12 @@ def _run_download(task_id: str, url: str, format_type: str = "mp4") -> None:
     with _tasks_lock:
         _tasks[task_id]["status"] = "running"
     try:
-        info = download_video(url, output_dir=DOWNLOAD_DIR, stop_check=stop_check, format_type=format_type)
+        formats = ["mp4", "mp3"] if format_type == "both" else [format_type]
+        info = {}
+        for fmt in formats:
+            if stop_check():
+                raise DownloadCancelledError("Cancelled by user")
+            info = download_video(url, output_dir=DOWNLOAD_DIR, stop_check=stop_check, format_type=fmt)
         with _tasks_lock:
             _tasks[task_id]["status"] = "completed"
             _tasks[task_id]["title"] = info.get("title", "")
