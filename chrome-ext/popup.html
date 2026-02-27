@@ -68,6 +68,20 @@
     input[type="text"]:focus, input[type="url"]:focus {
       border-color: var(--md-primary);
     }
+    .format-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .format-row label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--md-on-surface);
+      cursor: pointer;
+      margin-bottom: 0;
+    }
     button#downloadBtn {
       width: 100%;
       padding: 10px;
@@ -92,7 +106,14 @@
       padding: 10px 12px;
       border-radius: var(--md-radius-sm);
       font-size: 13px;
-      display: none;
+      display: block;
+    }
+    #status.idle {
+      background: var(--md-surface-variant);
+      color: var(--md-on-surface-variant);
+    }
+    @media (prefers-color-scheme: dark) {
+      #status.idle { background: var(--md-surface-variant); color: var(--md-on-surface-variant); }
     }
     #status.processing {
       display: block;
@@ -113,6 +134,58 @@
       #status.processing { background: #1a3a6b; color: #8ab4f8; }
       #status.success    { background: #0d3520; color: #81c995; }
       #status.error      { background: #5c1c1c; color: #f28b82; }
+    }
+    #status .status-detail {
+      font-size: 12px;
+      margin-top: 6px;
+      color: var(--md-on-surface-variant);
+      word-break: break-word;
+    }
+    #status.success .status-detail { color: rgba(255,255,255,0.9); }
+    @media (prefers-color-scheme: dark) {
+      #status .status-detail { color: var(--md-on-surface-variant); }
+      #status.success .status-detail { color: #81c995; }
+    }
+    #status a.media-link {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--md-primary);
+    }
+    #status.error .status-detail { color: #d93025; }
+    #status.cancelled {
+      display: block;
+      background: var(--md-surface-variant);
+      color: var(--md-on-surface-variant);
+    }
+    .cancel-btn {
+      margin-left: auto;
+      padding: 4px 10px;
+      font-size: 12px;
+      border: 1px solid var(--md-outline);
+      border-radius: var(--md-radius-sm);
+      background: var(--md-surface);
+      color: var(--md-on-surface);
+      cursor: pointer;
+    }
+    .cancel-btn:hover { background: var(--md-surface-variant); }
+    .progress-bar-wrap {
+      margin-top: 8px;
+      height: 4px;
+      background: var(--md-surface-variant);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 30%;
+      background: var(--md-primary);
+      border-radius: 2px;
+      animation: progress-indeterminate 1.2s ease-in-out infinite;
+    }
+    @keyframes progress-indeterminate {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
     }
     .spinner {
       display: inline-block;
@@ -147,14 +220,27 @@
   <div class="settings-toggle" id="settingsToggle">⚙ Settings</div>
   <div id="settingsPanel">
     <div class="field">
-      <label for="haUrl">Home Assistant API URL</label>
+      <label for="haUrl">yt-dlp API URL</label>
       <input type="url" id="haUrl" placeholder="http://192.168.1.100:5000" />
+    </div>
+    <div class="field">
+      <label for="haFrontendUrl">HA Frontend URL (optional)</label>
+      <input type="url" id="haFrontendUrl" placeholder="http://homeassistant.local:8123" />
+      <span class="status-detail" style="margin-top:4px;display:block;">Used for &quot;Open Media Browser&quot; link when download completes.</span>
     </div>
   </div>
 
   <div class="field">
     <label for="videoUrl">YouTube URL</label>
     <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." />
+  </div>
+
+  <div class="field">
+    <label>Format</label>
+    <div class="format-row">
+      <label><input type="radio" name="format" id="formatMp4" value="mp4" checked /> MP4 (video)</label>
+      <label><input type="radio" name="format" id="formatMp3" value="mp3" /> MP3 (audio only)</label>
+    </div>
   </div>
 
   <button id="downloadBtn">
@@ -168,7 +254,13 @@
     <div class="status-row">
       <span class="spinner" id="spinner"></span>
       <span id="statusText"></span>
+      <button type="button" id="cancelBtn" class="cancel-btn" style="display: none;">Cancel</button>
     </div>
+    <div class="progress-bar-wrap" id="progressBarWrap" style="display: none;">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="status-detail" id="statusDetail"></div>
+    <a class="media-link" id="mediaLink" href="#" target="_blank" rel="noopener" style="display: none;">Open Media Browser</a>
   </div>
 
   <script src="popup.js"></script>

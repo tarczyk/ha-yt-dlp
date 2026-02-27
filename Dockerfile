@@ -1,4 +1,4 @@
-FROM python:3.12-alpine
+FROM python:3.14-alpine
 
 RUN apk add --no-cache \
         curl \
@@ -16,10 +16,10 @@ RUN mkdir -p /config/media && chown appuser:appgroup /config/media
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY yt-dlp-api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY --chown=appuser:appgroup app/ ./app/
+COPY --chown=appuser:appgroup yt-dlp-api/app/ ./app/
 
 USER appuser
 

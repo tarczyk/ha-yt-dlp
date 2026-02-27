@@ -6,10 +6,11 @@ A Manifest V3 Chrome extension that lets you download YouTube videos to your Hom
 
 - **Auto-detect YouTube URL** – opens on any `youtube.com/watch` tab and pre-fills the video URL automatically
 - **1-click download** – sends a `POST /download_video` request to your HA yt-dlp API
-- **Live status polling** – polls `GET /tasks/<id>` every 2 s and shows `Loading → Processing → ✅ Completed / ❌ Failed`
-- **Persistent settings** – your HA API URL is stored via `chrome.storage.sync`
+- **Progress and status** – indeterminate progress bar and messages: Queued → Downloading → Saved (or error). You can close the popup; the download continues on the server.
+- **Folder and link** – on success, shows the destination folder (e.g. *My media → youtube_downloads*) and an optional **Open Media Browser** link if you set the HA Frontend URL in Settings
+- **Clear errors** – failed downloads and invalid input show a short title and a detail line (e.g. server error message or hint to check the API URL)
+- **Persistent settings** – yt-dlp API URL and optional HA Frontend URL are stored via `chrome.storage.sync`
 - **Material Design 3 UI** – 350×300 px popup with dark/light theme support
-- **Error handling + retry** – surfaces API errors and transient network failures
 
 ## Permissions
 
@@ -29,19 +30,22 @@ A Manifest V3 Chrome extension that lets you download YouTube videos to your Hom
 
 The extension icon will appear in the Chrome toolbar.
 
+**Or install from a zip:** On each [release](https://github.com/tarczyk/ha-yt-dlp/releases) you’ll find `ha-yt-dlp-chrome-ext-<version>.zip`. Download it, unzip, then in Chrome use **Load unpacked** and select the unzipped folder. You can also build the zip locally: from the repo root run `./chrome-ext/build-zip.sh`; the zip is created in `chrome-ext/`.
+
 ## Configuration
 
 1. Click the extension icon on any page
 2. Click **⚙ Settings** to expand the settings panel
-3. Enter your HA yt-dlp API URL (e.g. `http://192.168.1.100:5000`)
-4. The URL is saved automatically when you leave the field
+3. **yt-dlp API URL** (required) – where the add-on or Docker API runs (e.g. `http://192.168.1.100:5000`)
+4. **HA Frontend URL** (optional) – your Home Assistant UI URL (e.g. `http://homeassistant.local:8123`). If set, a link **Open Media Browser** is shown when a download completes
+5. URLs are saved automatically when you leave each field (or when you click Download)
 
 ## Usage
 
 1. Go to any YouTube video page (`youtube.com/watch?v=…`)
 2. Click the extension icon – the video URL is filled automatically
 3. Click **Download to HA**
-4. Watch the live status: `Processing… → ✅ Saved to HA Media Browser!`
+4. Watch the status: **Queued…** → **Downloading…** (with progress bar) → **Saved: "Video title"** with folder and optional **Open Media Browser** link, or an error message with details
 
 ## Chrome Web Store
 
@@ -75,6 +79,7 @@ chrome-ext/
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | `POST` | `/download_video` | Start download; returns `{"task_id": "..."}` |
-| `GET`  | `/tasks/<task_id>` | Poll task status (`processing` / `completed` / `failed`) |
+| `GET`  | `/tasks/<task_id>` | Poll task status (`queued` / `running` / `completed` / `error`) |
+| `GET`  | `/config`          | Read `media_subdir` to show the destination folder name |
 
 See the root [`README.md`](../README.md) for full API documentation.
