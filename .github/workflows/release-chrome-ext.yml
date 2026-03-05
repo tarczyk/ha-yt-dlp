@@ -26,8 +26,11 @@ jobs:
         run: |
           if [ -n "${{ inputs.release_tag }}" ]; then
             echo "effective_tag=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
-          else
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "effective_tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=$(jq -r '.version' package.json)
+            echo "effective_tag=v${VERSION}" >> $GITHUB_OUTPUT
           fi
 
       - name: Build extension zip
