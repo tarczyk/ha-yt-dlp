@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import subprocess
+import tempfile
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -28,8 +29,9 @@ import yt_dlp
 logger = logging.getLogger(__name__)
 
 # Error signals that trigger ad-hoc update — owned here, never duplicated elsewhere.
-# "bot" uses word boundary (\bbot\b) to avoid false positives on "robot", "chatbot", etc.
-ERROR_SIGNALS = ["Sign in", "bot", "403", "Forbidden", "format not available"]
+# Uses regex with word boundaries for "bot" and "403" to avoid false positives
+# ("robot", "chatbot", "1403", etc.). Always use contains_error_signal() — never
+# iterate over this list directly with substring matching.
 _ERROR_SIGNAL_RE = re.compile(
     r"Sign in|\b403\b|Forbidden|format not available|\bbot\b"
 )
@@ -55,7 +57,6 @@ class Updater:
     def __init__(self, state_path: str = "/data/update-state.json") -> None:
         self._state_path = state_path
         self._lock = threading.Lock()
-        self._updating = False
         self._state: dict = {}
         self._load_state()
 
@@ -69,6 +70,12 @@ class Updater:
             try:
                 with open(self._state_path, "r", encoding="utf-8") as f:
                     self._state = json.load(f)
+                # Recovery: container may have crashed mid-update, leaving stale "updating" state.
+                # /health would permanently show "updating" until the next actual update — reset to "failed".
+                if self._state.get("update_status") == "updating":
+                    logger.warning("[UPDATER] Stale 'updating' state detected on startup — resetting to 'failed'")
+                    self._state["update_status"] = "failed"
+                    self._save_state()
                 return
             except (json.JSONDecodeError, OSError) as exc:
                 logger.warning("[UPDATER] State file unreadable (%s), recreating with defaults", exc)
@@ -86,13 +93,23 @@ class Updater:
         self._save_state()
 
     def _save_state(self) -> None:
-        """Persist current state to JSON file."""
+        """Persist current state to JSON file. Uses atomic write (temp + rename)."""
         state_dir = os.path.dirname(self._state_path)
         try:
             if state_dir:
                 os.makedirs(state_dir, exist_ok=True)
-            with open(self._state_path, "w", encoding="utf-8") as f:
-                json.dump(self._state, f, indent=2)
+            dir_for_tmp = state_dir if state_dir else "."
+            fd, tmp_path = tempfile.mkstemp(dir=dir_for_tmp, suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(self._state, f, indent=2)
+                os.replace(tmp_path, self._state_path)
+            except Exception:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
         except OSError as exc:
             logger.error("[UPDATER] Failed to save state file: %s", exc)
 
@@ -150,7 +167,6 @@ class Updater:
             logger.info("[UPDATER] Update already in progress, skipping (reason=%s)", reason)
             return UpdateResult(success=False, error="update already in progress")
 
-        self._updating = True
         component = "AUTO-UPDATE" if reason == "scheduled" else "AD-HOC-UPDATE"
         version_before = self._state.get("current_version", "")
 
@@ -212,8 +228,27 @@ class Updater:
             return UpdateResult(success=False, version_before=version_before, error=error_msg)
 
         finally:
-            self._updating = False
             self._lock.release()
+
+    def _send_ha_notification(self, error_type: str, reason: str) -> None:
+        """
+        Send persistent notification to Home Assistant on update failure.
+
+        Gracefully degrades when SUPERVISOR_TOKEN is not set (Docker mode).
+        Ordering requirement: always call BEFORE setting task status to TASK_STATUS_FAILED.
+
+        Args:
+            error_type: Human-readable error description (e.g. "timeout after 120s")
+            reason: "scheduled" | "ad-hoc"
+
+        Full HTTP implementation added in Story 2.2.
+        """
+        token = os.environ.get("SUPERVISOR_TOKEN")
+        if not token:
+            logger.warning("[HA-NOTIFY] SUPERVISOR_TOKEN not set — log only mode")
+            return
+        # Story 2.2: POST /core/api/services/persistent_notification/create
+        logger.info("[HA-NOTIFY] Notification scaffold — Story 2.2 implements HTTP call")
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -228,6 +263,6 @@ class Updater:
         import yt_dlp as yt_dlp_module
         try:
             importlib.reload(yt_dlp_module.version)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[UPDATER] Failed to reload yt_dlp.version after update: %s", exc)
         return yt_dlp_module.version.__version__

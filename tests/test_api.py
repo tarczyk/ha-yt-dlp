@@ -155,6 +155,174 @@ class TestRunDownloadAdHocUpdate:
         assert task["status"] == TASK_STATUS_FAILED
 
 
+class TestCancellationFixes:
+    """AI-Review H1 + M1 — cancellation correctness in update/retry path."""
+
+    def setup_method(self, method):
+        with api_module._tasks_lock:
+            api_module._tasks.clear()
+
+    def test_cancelled_during_retry_sets_cancelled_status(self):
+        """H1: DownloadCancelledError in retry path → status 'cancelled', not TASK_STATUS_FAILED."""
+        from app.yt_dlp_manager import DownloadCancelledError
+
+        _make_task()
+        updater = MagicMock(spec=Updater)
+        updater.contains_error_signal.return_value = True
+        updater.update_if_needed.return_value = UpdateResult(
+            success=True, version_before="2026.01.01", version_after="2026.03.10"
+        )
+        old = _inject_updater(updater)
+        try:
+            call_count = [0]
+
+            def download_side_effect(*args, **kwargs):
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    raise Exception("403 Forbidden")
+                raise DownloadCancelledError("Cancelled by user")
+
+            with patch("app.api.download_video", side_effect=download_side_effect):
+                api_module._run_download(_TASK_ID, "https://youtube.com/watch?v=test", "mp4")
+        finally:
+            api_module._updater = old
+
+        with api_module._tasks_lock:
+            task = api_module._tasks[_TASK_ID]
+        assert task["status"] == "cancelled", (
+            f"Expected 'cancelled' but got '{task['status']}' — DownloadCancelledError in retry must not become FAILED"
+        )
+
+    def test_cancelled_after_update_before_retry_skips_download(self):
+        """L3: Task cancelled after pip install succeeds but before retry starts — must not attempt retry."""
+        _make_task()
+        updater = MagicMock(spec=Updater)
+        updater.contains_error_signal.return_value = True
+        updater.update_if_needed.return_value = UpdateResult(
+            success=True, version_before="2026.01.01", version_after="2026.03.10"
+        )
+        old = _inject_updater(updater)
+        try:
+            call_count = [0]
+
+            def download_side_effect(*args, **kwargs):
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    # Cancel task right as update completes, before retry
+                    with api_module._tasks_lock:
+                        api_module._tasks[_TASK_ID]["cancelled"] = True
+                    raise Exception("403 Forbidden")
+                return {"title": "Should not reach here"}
+
+            with patch("app.api.download_video", side_effect=download_side_effect):
+                api_module._run_download(_TASK_ID, "https://youtube.com/watch?v=test", "mp4")
+        finally:
+            api_module._updater = old
+
+        assert call_count[0] == 1, "download_video should only be called once — no retry after cancel"
+        with api_module._tasks_lock:
+            task = api_module._tasks[_TASK_ID]
+        assert task["status"] == "cancelled"
+
+    def test_cancelled_before_update_skips_pip_install(self):
+        """M1: Task cancelled between download failure and update start — must not run pip install.
+
+        Scenario: download fails with error signal; user cancels task DURING exception handling
+        (i.e. cancelled flag is set after the exception is raised but before the update starts).
+        Code must check stop_check() before calling update_if_needed.
+        """
+        _make_task()
+        updater = MagicMock(spec=Updater)
+        updater.contains_error_signal.return_value = True
+        old = _inject_updater(updater)
+        try:
+            def download_side_effect(*args, **kwargs):
+                # Simulate cancellation happening right as the download fails
+                # (before exception handler reaches the update call)
+                with api_module._tasks_lock:
+                    api_module._tasks[_TASK_ID]["cancelled"] = True
+                raise Exception("Sign in to confirm")
+
+            with patch("app.api.download_video", side_effect=download_side_effect):
+                api_module._run_download(_TASK_ID, "https://youtube.com/watch?v=test", "mp4")
+        finally:
+            api_module._updater = old
+
+        updater.update_if_needed.assert_not_called()
+        with api_module._tasks_lock:
+            task = api_module._tasks[_TASK_ID]
+        assert task["status"] == "cancelled"
+
+
+class TestTaskPruning:
+    """AI-Review M2 — _tasks memory leak prevention."""
+
+    def setup_method(self, method):
+        with api_module._tasks_lock:
+            api_module._tasks.clear()
+
+    def test_completed_tasks_pruned_when_exceeding_max(self):
+        """Terminal tasks beyond _MAX_TASK_HISTORY are removed (oldest first)."""
+        max_history = api_module._MAX_TASK_HISTORY
+        # Fill with completed tasks beyond the limit
+        with api_module._tasks_lock:
+            for i in range(max_history + 5):
+                api_module._tasks[f"old-task-{i}"] = {
+                    "task_id": f"old-task-{i}",
+                    "status": TASK_STATUS_COMPLETED,
+                    "cancelled": False,
+                }
+
+        # Run a new download that completes — should trigger pruning
+        _make_task("new-task")
+        updater = MagicMock(spec=Updater)
+        updater.contains_error_signal.return_value = False
+        old = _inject_updater(updater)
+        try:
+            with patch("app.api.download_video", return_value={"title": "Test"}):
+                api_module._run_download("new-task", "https://youtube.com/watch?v=test", "mp4")
+        finally:
+            api_module._updater = old
+
+        with api_module._tasks_lock:
+            count = len(api_module._tasks)
+        assert count <= max_history, (
+            f"_tasks should be pruned to max {max_history}, but has {count}"
+        )
+
+    def test_active_tasks_not_pruned(self):
+        """Downloading/updating tasks must never be removed by pruning."""
+        max_history = api_module._MAX_TASK_HISTORY
+        # Fill with completed tasks at the limit
+        with api_module._tasks_lock:
+            for i in range(max_history):
+                api_module._tasks[f"old-task-{i}"] = {
+                    "task_id": f"old-task-{i}",
+                    "status": TASK_STATUS_COMPLETED,
+                    "cancelled": False,
+                }
+            # Add an active task
+            api_module._tasks["active-task"] = {
+                "task_id": "active-task",
+                "status": TASK_STATUS_DOWNLOADING,
+                "cancelled": False,
+            }
+
+        # Run another task that completes — pruning fires
+        _make_task("new-task")
+        updater = MagicMock(spec=Updater)
+        updater.contains_error_signal.return_value = False
+        old = _inject_updater(updater)
+        try:
+            with patch("app.api.download_video", return_value={"title": "Test"}):
+                api_module._run_download("new-task", "https://youtube.com/watch?v=test", "mp4")
+        finally:
+            api_module._updater = old
+
+        with api_module._tasks_lock:
+            assert "active-task" in api_module._tasks, "Active task must not be pruned"
+
+
 def test_health_200(client):
     response = client.get("/health")
     assert response.status_code == 200
@@ -288,3 +456,103 @@ def test_task_cancel(client):
     assert response.status_code == 200
     data = response.get_json()
     assert data.get("status") == "cancelling"
+
+
+# ---------------------------------------------------------------------------
+# Story 2.1: /health endpoint with yt-dlp version data
+# ---------------------------------------------------------------------------
+
+def test_health_includes_updater_fields(client):
+    """GET /health with live updater returns yt_dlp_version, yt_dlp_latest, last_update, update_status."""
+    response = client.get("/health")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["status"] == "healthy"
+    assert "yt_dlp_version" in data
+    assert "yt_dlp_latest" in data
+    assert "last_update" in data
+    assert "update_status" in data
+
+
+def test_health_update_status_ok_by_default(client):
+    """GET /health returns update_status 'ok' on fresh state."""
+    response = client.get("/health")
+    data = response.get_json()
+    assert data["update_status"] == "ok"
+
+
+def test_health_no_network_calls(client):
+    """GET /health must not make external network calls — verify via mock."""
+    with patch("app.updater.subprocess.run") as mock_sub:
+        response = client.get("/health")
+    assert response.status_code == 200
+    mock_sub.assert_not_called()
+
+
+def test_health_updating_status_reflected(client):
+    """GET /health returns update_status 'updating' when update is in progress (AC4)."""
+    mock_updater = MagicMock(spec=Updater)
+    mock_updater.get_update_status.return_value = {
+        "current_version": "2026.01.01",
+        "latest_version": "2026.03.07",
+        "last_update": None,
+        "update_status": "updating",
+    }
+    old = api_module._updater
+    api_module._updater = mock_updater
+    try:
+        response = client.get("/health")
+    finally:
+        api_module._updater = old
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["update_status"] == "updating"
+
+
+def test_health_updater_none_returns_healthy(monkeypatch, client):
+    """If _updater is None, /health returns {status: healthy} without crashing."""
+    monkeypatch.setattr(api_module, "_updater", None)
+    response = client.get("/health")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["status"] == "healthy"
+    assert "yt_dlp_version" not in data
+
+
+# ---------------------------------------------------------------------------
+# Prep sprint: has_active_tasks()
+# ---------------------------------------------------------------------------
+
+class TestHasActiveTasks:
+    def setup_method(self, method):
+        with api_module._tasks_lock:
+            api_module._tasks.clear()
+
+    def test_no_tasks_returns_false(self):
+        assert api_module.has_active_tasks() is False
+
+    def test_downloading_task_returns_true(self):
+        with api_module._tasks_lock:
+            api_module._tasks["t1"] = {"status": TASK_STATUS_DOWNLOADING, "cancelled": False}
+        assert api_module.has_active_tasks() is True
+
+    def test_updating_task_returns_true(self):
+        with api_module._tasks_lock:
+            api_module._tasks["t1"] = {"status": TASK_STATUS_UPDATING, "cancelled": False}
+        assert api_module.has_active_tasks() is True
+
+    def test_completed_task_returns_false(self):
+        with api_module._tasks_lock:
+            api_module._tasks["t1"] = {"status": TASK_STATUS_COMPLETED, "cancelled": False}
+        assert api_module.has_active_tasks() is False
+
+    def test_failed_task_returns_false(self):
+        with api_module._tasks_lock:
+            api_module._tasks["t1"] = {"status": TASK_STATUS_FAILED, "cancelled": False}
+        assert api_module.has_active_tasks() is False
+
+    def test_mixed_tasks_returns_true_if_any_active(self):
+        with api_module._tasks_lock:
+            api_module._tasks["t1"] = {"status": TASK_STATUS_COMPLETED, "cancelled": False}
+            api_module._tasks["t2"] = {"status": TASK_STATUS_DOWNLOADING, "cancelled": False}
+        assert api_module.has_active_tasks() is True

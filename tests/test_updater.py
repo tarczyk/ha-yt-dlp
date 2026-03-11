@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.updater import ERROR_SIGNALS, UpdateResult, Updater
+from app.updater import UpdateResult, Updater
 
 
 # ---------------------------------------------------------------------------
@@ -335,6 +335,29 @@ class TestUpdateIfNeededTimeout:
 
         assert state["update_status"] == "failed"
 
+    def test_unexpected_exception_returns_failure(self, tmp_path):
+        """Generic Exception (e.g. FileNotFoundError when pip missing) → success=False."""
+        updater = Updater(state_path=str(tmp_path / "state.json"))
+
+        with patch("subprocess.run", side_effect=FileNotFoundError("pip not found")):
+            result = updater.update_if_needed("test")
+
+        assert result.success is False
+        assert result.error is not None
+        assert "pip not found" in result.error
+
+    def test_unexpected_exception_saves_failed_state(self, tmp_path):
+        """Generic Exception → state persisted as 'failed'."""
+        state_path = tmp_path / "state.json"
+        updater = Updater(state_path=str(state_path))
+
+        with patch("subprocess.run", side_effect=RuntimeError("unexpected internal error")):
+            updater.update_if_needed("test")
+
+        with open(state_path) as f:
+            state = json.load(f)
+        assert state["update_status"] == "failed"
+
 
 # ---------------------------------------------------------------------------
 # AC8 — is_updating / concurrent guard
@@ -419,3 +442,85 @@ class TestIsUpdatingConcurrency:
             updater.update_if_needed("test")
 
         assert updater.is_updating() is False
+
+
+# ---------------------------------------------------------------------------
+# AI-Review M3 — stale "updating" state recovery on startup
+# ---------------------------------------------------------------------------
+
+class TestStaleUpdatingStateRecovery:
+    def test_stale_updating_reset_to_failed_on_startup(self, tmp_path):
+        """After a container crash mid-update, state may be left as 'updating'.
+        _load_state() must reset this to 'failed' so /health never shows stale 'updating'.
+        """
+        state_path = tmp_path / "state.json"
+        # Write a state file left behind by a crashed update
+        stale_state = {
+            "current_version": "2026.01.01",
+            "latest_version": "2026.01.01",
+            "update_status": "updating",  # stale — container crashed mid-update
+            "last_update_attempt": "2026-01-01T03:00:00Z",
+            "last_successful_update": None,
+            "last_error": None,
+        }
+        state_path.write_text(json.dumps(stale_state))
+
+        updater = Updater(state_path=str(state_path))
+
+        status = updater.get_update_status()
+        assert status["update_status"] == "failed", (
+            "Stale 'updating' state must be reset to 'failed' on startup"
+        )
+
+    def test_stale_updating_persisted_as_failed(self, tmp_path):
+        """Recovery must also persist the 'failed' status to the state file."""
+        state_path = tmp_path / "state.json"
+        stale_state = {
+            "current_version": "2026.01.01",
+            "latest_version": "2026.01.01",
+            "update_status": "updating",
+            "last_update_attempt": "2026-01-01T03:00:00Z",
+            "last_successful_update": None,
+            "last_error": None,
+        }
+        state_path.write_text(json.dumps(stale_state))
+
+        Updater(state_path=str(state_path))
+
+        with open(state_path) as f:
+            saved = json.load(f)
+        assert saved["update_status"] == "failed"
+
+    def test_ok_state_not_modified_on_startup(self, tmp_path):
+        """Normal 'ok' state must NOT be changed during startup."""
+        state_path = tmp_path / "state.json"
+        normal_state = {
+            "current_version": "2026.03.07",
+            "latest_version": "2026.03.07",
+            "update_status": "ok",
+            "last_update_attempt": "2026-03-07T03:00:00Z",
+            "last_successful_update": "2026-03-07T03:00:00Z",
+            "last_error": None,
+        }
+        state_path.write_text(json.dumps(normal_state))
+
+        updater = Updater(state_path=str(state_path))
+
+        assert updater.get_update_status()["update_status"] == "ok"
+
+    def test_failed_state_not_modified_on_startup(self, tmp_path):
+        """Existing 'failed' state must stay 'failed' — no double-recovery."""
+        state_path = tmp_path / "state.json"
+        failed_state = {
+            "current_version": "2026.03.07",
+            "latest_version": "2026.03.07",
+            "update_status": "failed",
+            "last_update_attempt": "2026-03-07T03:00:00Z",
+            "last_successful_update": None,
+            "last_error": "timeout after 120s",
+        }
+        state_path.write_text(json.dumps(failed_state))
+
+        updater = Updater(state_path=str(state_path))
+
+        assert updater.get_update_status()["update_status"] == "failed"

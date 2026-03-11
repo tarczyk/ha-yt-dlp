@@ -3,15 +3,15 @@ import threading
 from flask import Flask, request
 
 
-def create_app() -> Flask:
+def create_app(state_path: str = "/data/update-state.json") -> Flask:
     app = Flask(__name__)
     from .api import api
     app.register_blueprint(api)
 
-    # Initialize Updater (loads /data/update-state.json; gracefully handles missing file)
+    # Initialize Updater (loads state_path; gracefully handles missing file)
     from .updater import Updater
     from .api import init_updater
-    init_updater(Updater())
+    init_updater(Updater(state_path=state_path))
 
     # Kick off a background version check at startup so the cache is warm
     # and a WARNING is emitted early if yt-dlp is outdated.

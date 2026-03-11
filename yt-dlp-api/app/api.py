@@ -21,6 +21,23 @@ api = Blueprint("api", __name__)
 _tasks: dict[str, dict] = {}
 _tasks_lock = threading.Lock()
 
+_MAX_TASK_HISTORY = 100  # Max terminal-state tasks kept in memory; oldest pruned on completion
+
+
+def _prune_completed_tasks() -> None:
+    """Remove oldest terminal-state tasks when count exceeds _MAX_TASK_HISTORY.
+
+    Must be called with _tasks_lock held.
+    Only removes tasks in terminal states (completed/failed/cancelled) — never active tasks.
+    Preserves insertion order so oldest completed tasks are removed first.
+    """
+    _TERMINAL = (TASK_STATUS_COMPLETED, TASK_STATUS_FAILED, "cancelled")
+    terminal_ids = [tid for tid, t in _tasks.items() if t.get("status") in _TERMINAL]
+    excess = len(terminal_ids) - _MAX_TASK_HISTORY
+    if excess > 0:
+        for tid in terminal_ids[:excess]:
+            del _tasks[tid]
+
 _updater: Updater | None = None
 
 
@@ -28,6 +45,15 @@ def init_updater(updater: Updater) -> None:
     """Called by create_app() to inject the shared Updater instance."""
     global _updater
     _updater = updater
+
+
+def has_active_tasks() -> bool:
+    """Return True if any task is currently downloading or updating."""
+    with _tasks_lock:
+        return any(
+            t.get("status") in (TASK_STATUS_DOWNLOADING, TASK_STATUS_UPDATING)
+            for t in _tasks.values()
+        )
 
 DOWNLOAD_DIR = os.environ.get("DOWNLOAD_DIR", "/config/media")
 MEDIA_SUBDIR = os.environ.get("MEDIA_SUBDIR", "youtube_downloads")
@@ -38,30 +64,40 @@ def _run_download(task_id: str, url: str, format_type: str = "mp4") -> None:
         with _tasks_lock:
             return _tasks.get(task_id, {}).get("cancelled") is True
 
-    with _tasks_lock:
-        _tasks[task_id]["status"] = TASK_STATUS_DOWNLOADING
     try:
-        formats = ["mp4", "mp3"] if format_type == "both" else [format_type]
-        info = {}
-        for fmt in formats:
-            if stop_check():
-                raise DownloadCancelledError("Cancelled by user")
-            info = download_video(url, output_dir=DOWNLOAD_DIR, stop_check=stop_check, format_type=fmt)
         with _tasks_lock:
-            _tasks[task_id]["status"] = TASK_STATUS_COMPLETED
-            _tasks[task_id]["title"] = info.get("title", "")
-    except DownloadCancelledError:
-        with _tasks_lock:
-            _tasks[task_id]["status"] = "cancelled"
-            _tasks[task_id]["error"] = "Cancelled by user"
-    except Exception as exc:
-        error_str = str(exc)
-        if _updater is not None and _updater.contains_error_signal(error_str):
-            _trigger_adhoc_update_and_retry(task_id, url, format_type, error_str, stop_check)
-        else:
+            _tasks[task_id]["status"] = TASK_STATUS_DOWNLOADING
+        try:
+            formats = ["mp4", "mp3"] if format_type == "both" else [format_type]
+            info = {}
+            for fmt in formats:
+                if stop_check():
+                    raise DownloadCancelledError("Cancelled by user")
+                info = download_video(url, output_dir=DOWNLOAD_DIR, stop_check=stop_check, format_type=fmt)
             with _tasks_lock:
-                _tasks[task_id]["status"] = TASK_STATUS_FAILED
-                _tasks[task_id]["error"] = error_str
+                _tasks[task_id]["status"] = TASK_STATUS_COMPLETED
+                _tasks[task_id]["title"] = info.get("title", "")
+        except DownloadCancelledError:
+            with _tasks_lock:
+                _tasks[task_id]["status"] = "cancelled"
+                _tasks[task_id]["error"] = "Cancelled by user"
+        except Exception as exc:
+            error_str = str(exc)
+            if _updater is not None and _updater.contains_error_signal(error_str):
+                if stop_check():
+                    # Task was cancelled between download failure and update start — skip pip install
+                    with _tasks_lock:
+                        _tasks[task_id]["status"] = "cancelled"
+                        _tasks[task_id]["error"] = "Cancelled by user"
+                else:
+                    _trigger_adhoc_update_and_retry(task_id, url, format_type, error_str, stop_check)
+            else:
+                with _tasks_lock:
+                    _tasks[task_id]["status"] = TASK_STATUS_FAILED
+                    _tasks[task_id]["error"] = error_str
+    finally:
+        with _tasks_lock:
+            _prune_completed_tasks()
 
 
 def _trigger_adhoc_update_and_retry(
@@ -79,6 +115,13 @@ def _trigger_adhoc_update_and_retry(
             _tasks[task_id]["error"] = original_error
         return
 
+    # Check cancellation before retry — user may have cancelled during pip install
+    if stop_check():
+        with _tasks_lock:
+            _tasks[task_id]["status"] = "cancelled"
+            _tasks[task_id]["error"] = "Cancelled by user"
+        return
+
     # Update succeeded — retry the download
     try:
         formats = ["mp4", "mp3"] if format_type == "both" else [format_type]
@@ -88,6 +131,10 @@ def _trigger_adhoc_update_and_retry(
         with _tasks_lock:
             _tasks[task_id]["status"] = TASK_STATUS_COMPLETED
             _tasks[task_id]["title"] = info.get("title", "")
+    except DownloadCancelledError:
+        with _tasks_lock:
+            _tasks[task_id]["status"] = "cancelled"
+            _tasks[task_id]["error"] = "Cancelled by user"
     except Exception as retry_exc:
         with _tasks_lock:
             _tasks[task_id]["status"] = TASK_STATUS_FAILED
@@ -120,7 +167,14 @@ def _is_playlist_url(url: str) -> bool:
 
 @api.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "healthy"}), 200
+    response: dict = {"status": "healthy"}
+    if _updater is not None:
+        status = _updater.get_update_status()
+        response["yt_dlp_version"] = status["current_version"]
+        response["yt_dlp_latest"] = status["latest_version"]
+        response["last_update"] = status["last_update"]
+        response["update_status"] = status["update_status"]
+    return jsonify(response), 200
 
 
 @api.route("/config", methods=["GET"])
