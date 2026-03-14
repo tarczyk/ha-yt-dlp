@@ -1,15 +1,13 @@
-# Publish the Chrome extension to the Chrome Web Store after a GitHub Release is published.
+# DISABLED – Chrome Web Store publication not used.
+# The extension uses streaming/download functionality not permitted by Chrome Web Store policy.
+# Distribution is via GitHub Releases (.zip) + manual "Load unpacked" installation.
+# See chrome-ext/README-chrome.md for installation instructions.
 #
-# Required repository secrets:
-#   CHROME_EXTENSION_ID    – The extension's ID from the Chrome Web Store (omit after first publish)
-#   CHROME_CLIENT_ID       – OAuth2 client ID (Google Cloud Console → APIs & Services → Credentials)
-#   CHROME_CLIENT_SECRET   – OAuth2 client secret
-#   CHROME_REFRESH_TOKEN   – OAuth2 refresh token (see docs/chrome-webstore-publish.md)
-name: Publish Chrome Extension
+# This file is kept for reference only. It will NOT run automatically.
+# To re-enable, restore the `release:` trigger below.
+name: Publish Chrome Extension (Disabled)
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -19,6 +17,7 @@ on:
 
 jobs:
   publish:
+    if: false # DISABLED — kept for reference only
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

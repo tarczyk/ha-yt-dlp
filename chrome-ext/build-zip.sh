@@ -14,6 +14,6 @@ OUTPUT_ZIP="ha-yt-dlp-chrome-ext-${VERSION}.zip"
 
 # Zip contents of chrome-ext (no parent path, no .git)
 rm -f "$OUTPUT_ZIP"
-zip -r "$OUTPUT_ZIP" . -x "*.zip" -x ".git*" -x "*.gitkeep" -x "build-zip.sh"
+zip -r "$OUTPUT_ZIP" . -x "*.zip" -x ".git*" -x "*.gitkeep" -x "build-zip.sh" -x "screenshots/*" -x "README-chrome.md"
 
 echo "Built: $SCRIPT_DIR/$OUTPUT_ZIP"

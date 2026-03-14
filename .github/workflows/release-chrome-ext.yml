@@ -38,7 +38,7 @@ jobs:
         run: |
           cd chrome-ext
           VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' manifest.json | head -1)
-          zip -r "ha-yt-dlp-chrome-ext-${VERSION}.zip" . -x "*.zip" -x ".git*" -x "*.gitkeep" -x "build-zip.sh"
+          zip -r "ha-yt-dlp-chrome-ext-${VERSION}.zip" . -x "*.zip" -x ".git*" -x "*.gitkeep" -x "build-zip.sh" -x "screenshots/*" -x "README-chrome.md"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "zip_path=chrome-ext/ha-yt-dlp-chrome-ext-${VERSION}.zip" >> $GITHUB_OUTPUT
 

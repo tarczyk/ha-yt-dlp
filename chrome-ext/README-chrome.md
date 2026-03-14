@@ -2,6 +2,8 @@
 
 A Manifest V3 Chrome extension that lets you download YouTube videos to your Home Assistant media library with a single click.
 
+![Extension popup](screenshots/popup-preview-640x400.png)
+
 ## Features
 
 - **Auto-detect YouTube URL** – opens on any `youtube.com/watch` tab and pre-fills the video URL automatically
@@ -12,6 +14,44 @@ A Manifest V3 Chrome extension that lets you download YouTube videos to your Hom
 - **Persistent settings** – yt-dlp API URL and optional HA Frontend URL are stored via `chrome.storage.sync`
 - **Material Design 3 UI** – 350×300 px popup with dark/light theme support
 
+## Installation
+
+The extension is distributed via GitHub Releases as a `.zip` file and installed locally using Chrome's Developer Mode. This is the only supported installation method — the extension is not published on the Chrome Web Store.
+
+**Prerequisite:** The ha-yt-dlp backend must be running (either as a Home Assistant add-on or standalone Docker container). You will need its URL for the Configuration step below.
+
+### Step-by-step
+
+1. Go to the [Releases page](https://github.com/tarczyk/ha-yt-dlp/releases) and download the latest `ha-yt-dlp-chrome-ext-<version>.zip`
+2. Unzip the file to a permanent local folder (e.g. `~/ha-yt-dlp-chrome-ext/`)
+   - Do not delete or move this folder after installation — Chrome loads the extension from it
+3. Open Chrome and navigate to `chrome://extensions/`
+4. Enable **Developer mode** (toggle in the top-right corner)
+5. Click **Load unpacked**
+6. Select the unzipped folder
+
+The extension icon will appear in the Chrome toolbar. Pin it for easy access.
+
+### Updating
+
+When a new version is released:
+
+1. Download the new `.zip` from the [Releases page](https://github.com/tarczyk/ha-yt-dlp/releases)
+2. Unzip it, replacing the contents of your existing folder (or a new folder)
+3. Go to `chrome://extensions/` and click the **reload** icon on the HA yt-dlp Downloader card
+
+### Build from source
+
+To build the zip locally from a checkout:
+
+```bash
+# From the repo root
+./chrome-ext/build-zip.sh
+# Output: chrome-ext/ha-yt-dlp-chrome-ext-<version>.zip
+```
+
+Then follow steps 2–6 above using the unzipped contents.
+
 ## Permissions
 
 | Permission | Reason |
@@ -20,27 +60,6 @@ A Manifest V3 Chrome extension that lets you download YouTube videos to your Hom
 | `activeTab` | Inspect the current tab without requesting all-tabs access |
 | `storage` | Persist the HA API URL via `chrome.storage.sync` |
 | `host_permissions` (`http://*/*`, `https://*/*`) | The HA API URL is user-configured at runtime and can be any private IP/hostname. Because the target URL is unknown at install time, a broad pattern is required. No requests are ever sent to third-party servers. |
-
-## Install from the Chrome Web Store (recommended)
-
-> The extension is published on the Chrome Web Store – no Developer Mode required.
-
-1. Open the [HA yt-dlp Downloader](https://chrome.google.com/webstore/detail/ha-yt-dlp-downloader) listing.
-2. Click **Add to Chrome**.
-3. Confirm the permission prompt.
-
-The extension icon will appear in the Chrome toolbar immediately.
-
-## Install (Developer Mode / manual)
-
-Use this method if you want to test a local build or an unreleased version.
-
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable **Developer mode** (toggle in the top-right corner)
-3. Click **Load unpacked**
-4. Select the `chrome-ext/` folder from your `ha-yt-dlp` checkout
-
-**Or install from a release zip:** On each [release](https://github.com/tarczyk/ha-yt-dlp/releases) you’ll find `ha-yt-dlp-chrome-ext-<version>.zip`. Download it, unzip, then in Chrome use **Load unpacked** and select the unzipped folder. You can also build the zip locally: from the repo root run `./chrome-ext/build-zip.sh`; the zip is created in `chrome-ext/`.
 
 ## Configuration
 
@@ -52,18 +71,17 @@ Use this method if you want to test a local build or an unreleased version.
 
 ## Usage
 
-1. Go to any YouTube video page (`youtube.com/watch?v=…`)
+1. Go to any YouTube video page (`youtube.com/watch?v=…` or `youtu.be/…`)
 2. Click the extension icon – the video URL is filled automatically
 3. Click **Download to HA**
 4. Watch the status: **Queued…** → **Downloading…** (with progress bar) → **Saved: "Video title"** with folder and optional **Open Media Browser** link, or an error message with details
 
-## Chrome Web Store
+## Distribution
 
-The extension is listed on the Chrome Web Store under the **Productivity** category.
+The extension is distributed exclusively via GitHub Releases:
 
-- **Privacy policy:** [docs/privacy-policy.md](../docs/privacy-policy.md)
-- **Automated publishing:** each GitHub Release triggers `.github/workflows/publish-chrome-ext.yml` which builds the zip and uploads it to the Chrome Web Store via the Publish API.
-- **Setup guide:** see [docs/chrome-webstore-publish.md](../docs/chrome-webstore-publish.md) for one-time credentials setup.
+- Each `v*` tag triggers `.github/workflows/release-chrome-ext.yml` which builds the zip and attaches it to the GitHub Release as `ha-yt-dlp-chrome-ext-<version>.zip`
+- The Chrome Web Store publish workflow (`publish-chrome-ext.yml`) is disabled — the extension's download functionality is not permitted by Chrome Web Store policy
 
 > No data is sent to third parties. All network requests go directly to the user-configured local API.
 
@@ -79,7 +97,7 @@ chrome-ext/
 │   ├── icon-16.png
 │   ├── icon-48.png
 │   └── icon-128.png
-├── screenshots/        # Chrome Web Store screenshots (add before publishing)
+├── screenshots/        # Documentation screenshots
 └── README-chrome.md    # This file
 ```
 
