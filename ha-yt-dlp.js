@@ -173,6 +173,9 @@ const STYLES = `
     text-decoration: none;
     font-size: 0.8rem;
   }
+  .media-link + .media-link {
+    margin-left: 8px;
+  }
   .media-link:hover {
     text-decoration: underline;
   }
@@ -463,7 +466,9 @@ class YtDlpCard extends HTMLElement {
       const actionCell = status === "completed"
         ? `<a class="media-link" href="#" data-task-id="${this._esc(taskId)}" data-title="${this._esc(t.title || "")}">
             📂 Open
-           </a>`
+           </a>${t.filename ? `<a class="media-link" href="${this._esc(this._fileDownloadUrl(t.filename))}" target="_blank" rel="noopener">
+            ⬇️ Download
+           </a>` : ""}`
         : canCancel
           ? `<button type="button" class="btn-cancel" data-task-id="${this._esc(taskId)}">Stop</button>`
           : "—";
@@ -522,6 +527,10 @@ class YtDlpCard extends HTMLElement {
       },
     });
     this.dispatchEvent(event);
+  }
+
+  _fileDownloadUrl(filename) {
+    return `${this._apiUrl}/files/${encodeURIComponent(filename)}`;
   }
 
   _truncate(str, max) {

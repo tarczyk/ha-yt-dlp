@@ -90,6 +90,7 @@ def _run_download(task_id: str, url: str, format_type: str = "mp4") -> None:
             with _tasks_lock:
                 _tasks[task_id]["status"] = TASK_STATUS_COMPLETED
                 _tasks[task_id]["title"] = info.get("title", "")
+                _tasks[task_id]["filename"] = _extract_filename(info)
         except DownloadCancelledError:
             with _tasks_lock:
                 _tasks[task_id]["status"] = "cancelled"
@@ -144,6 +145,7 @@ def _trigger_adhoc_update_and_retry(
         with _tasks_lock:
             _tasks[task_id]["status"] = TASK_STATUS_COMPLETED
             _tasks[task_id]["title"] = info.get("title", "")
+            _tasks[task_id]["filename"] = _extract_filename(info)
     except DownloadCancelledError:
         with _tasks_lock:
             _tasks[task_id]["status"] = "cancelled"
@@ -190,6 +192,24 @@ def _is_safe_filename(filename: str) -> bool:
 def _is_allowed_extension(filename: str) -> bool:
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     return ext in ALLOWED_EXTENSIONS
+
+
+def _extract_filename(info: dict) -> str:
+    requested_downloads = info.get("requested_downloads") or []
+    if isinstance(requested_downloads, list):
+        for item in requested_downloads:
+            if not isinstance(item, dict):
+                continue
+            filepath = item.get("filepath")
+            if isinstance(filepath, str) and filepath:
+                return os.path.basename(filepath)
+
+    for key in ("_filename", "filename"):
+        filepath = info.get(key)
+        if isinstance(filepath, str) and filepath:
+            return os.path.basename(filepath)
+
+    return ""
 
 
 @api.route("/health", methods=["GET"])

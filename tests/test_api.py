@@ -99,7 +99,10 @@ class TestRunDownloadAdHocUpdate:
                 call_count[0] += 1
                 if call_count[0] == 1:
                     raise Exception("403 Forbidden")
-                return {"title": "Test Video"}
+                return {
+                    "title": "Test Video",
+                    "_filename": "/tmp/downloads/Test Video.mp4",
+                }
 
             with patch("app.api.download_video", side_effect=download_side_effect):
                 api_module._run_download(_TASK_ID, "https://youtube.com/watch?v=test", "mp4")
@@ -109,6 +112,7 @@ class TestRunDownloadAdHocUpdate:
         with api_module._tasks_lock:
             task = api_module._tasks[_TASK_ID]
         assert task["status"] == TASK_STATUS_COMPLETED
+        assert task["filename"] == "Test Video.mp4"
 
     def test_run_download_retry_fails_after_update(self):
         """Update success + retry fails → TASK_STATUS_FAILED"""
@@ -329,6 +333,14 @@ class TestTaskPruning:
 
         with api_module._tasks_lock:
             assert "active-task" in api_module._tasks, "Active task must not be pruned"
+
+
+def test_extract_filename_prefers_requested_downloads_filepath():
+    info = {
+        "_filename": "/tmp/downloads/fallback.mp4",
+        "requested_downloads": [{"filepath": "/tmp/downloads/real-name.mp3"}],
+    }
+    assert api_module._extract_filename(info) == "real-name.mp3"
 
 
 def test_health_200(client):
