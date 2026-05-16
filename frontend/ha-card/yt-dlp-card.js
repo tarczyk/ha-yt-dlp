@@ -465,12 +465,15 @@ class YtDlpCard extends HTMLElement {
         </div>
       `;
 
+      const downloadLink = t.filename
+        ? `<a class="media-link" href="${this._esc(this._fileDownloadUrl(t.filename))}" target="_blank" rel="noopener">
+            ⬇️ Download
+           </a>`
+        : "";
       const actionCell = status === "completed"
         ? `<a class="media-link" href="#" data-task-id="${this._esc(taskId)}" data-title="${this._esc(t.title || "")}">
             📂 Open
-           </a>${t.filename ? `<a class="media-link" href="${this._esc(this._fileDownloadUrl(t.filename))}" target="_blank" rel="noopener">
-            ⬇️ Download
-           </a>` : ""}`
+           </a>${downloadLink}`
         : canCancel
           ? `<button type="button" class="btn-cancel" data-task-id="${this._esc(taskId)}">Stop</button>`
           : "—";
@@ -537,8 +540,12 @@ class YtDlpCard extends HTMLElement {
   }
 
   _isSafeFilename(filename) {
+    const hasDriveLetter = /^[a-zA-Z]:/.test(filename);
+    const isAbsolutePath = filename.startsWith("/") || filename.startsWith("\\");
     return typeof filename === "string"
       && filename.length > 0
+      && !hasDriveLetter
+      && !isAbsolutePath
       && !filename.includes("..")
       && !filename.includes("/")
       && !filename.includes("\\")
