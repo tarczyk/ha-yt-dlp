@@ -143,7 +143,9 @@ Quick start:
 | `GET` | `/tasks` | List all tasks (each includes `task_id` for cancel). |
 | `GET` | `/tasks/<task_id>` | Status of one task. |
 | `DELETE` | `/tasks/<task_id>` | Cancel a queued or running task. |
-| `GET` | `/files` | List files in the media directory. |
+| `GET` | `/files` | List files in the media directory with metadata: `name`, `size`, `modified` (ISO UTC), `type`. |
+| `GET` | `/files/<filename>` | Download one media file as attachment. Returns `400` for invalid path traversal or disallowed extension, `404` when file does not exist. |
+| `DELETE` | `/files/<filename>` | Delete one media file. Returns `200` with deleted filename, `400` for invalid filename, `404` when file does not exist. |
 
 **`POST /download_video`**
 

@@ -1,9 +1,10 @@
 import os
 import threading
 import uuid
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 from .updater import Updater
 from .yt_dlp_manager import (
@@ -57,6 +58,18 @@ def has_active_tasks() -> bool:
 
 DOWNLOAD_DIR = os.environ.get("DOWNLOAD_DIR", "/config/media")
 MEDIA_SUBDIR = os.environ.get("MEDIA_SUBDIR", "youtube_downloads")
+ALLOWED_EXTENSIONS = {"mp3", "mp4", "webm", "m4a", "mkv", "avi", "wav", "ogg", "flac"}
+MIME_TYPES = {
+    "mp3": "audio/mpeg",
+    "mp4": "video/mp4",
+    "webm": "video/webm",
+    "m4a": "audio/mp4",
+    "mkv": "video/x-matroska",
+    "avi": "video/x-msvideo",
+    "wav": "audio/wav",
+    "ogg": "audio/ogg",
+    "flac": "audio/flac",
+}
 
 
 def _run_download(task_id: str, url: str, format_type: str = "mp4") -> None:
@@ -165,6 +178,20 @@ def _is_playlist_url(url: str) -> bool:
         return False
 
 
+def _is_safe_filename(filename: str) -> bool:
+    return (
+        "\x00" not in filename
+        and ".." not in filename
+        and "/" not in filename
+        and "\\" not in filename
+    )
+
+
+def _is_allowed_extension(filename: str) -> bool:
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    return ext in ALLOWED_EXTENSIONS
+
+
 @api.route("/health", methods=["GET"])
 def health():
     response: dict = {"status": "healthy"}
@@ -242,7 +269,59 @@ def task_cancel(task_id: str):
 def files():
     try:
         entries = os.listdir(DOWNLOAD_DIR)
-        file_list = [f for f in entries if os.path.isfile(os.path.join(DOWNLOAD_DIR, f))]
     except FileNotFoundError:
-        file_list = []
+        return jsonify([]), 200
+    file_list = []
+    for name in entries:
+        path = os.path.join(DOWNLOAD_DIR, name)
+        try:
+            if not os.path.isfile(path):
+                continue
+            file_stat = os.stat(path)
+        except FileNotFoundError:
+            continue
+        ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+        modified = datetime.fromtimestamp(file_stat.st_mtime, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+        file_list.append({
+            "name": name,
+            "size": file_stat.st_size,
+            "modified": modified,
+            "type": ext,
+        })
     return jsonify(file_list), 200
+
+
+@api.route("/files/<path:filename>", methods=["GET"])
+def download_file(filename: str):
+    if not _is_safe_filename(filename):
+        return jsonify({"error": "invalid filename"}), 400
+    if not _is_allowed_extension(filename):
+        return jsonify({"error": "file type not allowed"}), 400
+
+    filepath = os.path.join(DOWNLOAD_DIR, filename)
+    if not os.path.isfile(filepath):
+        return jsonify({"error": "file not found"}), 404
+
+    ext = filename.rsplit(".", 1)[-1].lower()
+    mimetype = MIME_TYPES.get(ext, "application/octet-stream")
+    return send_file(filepath, mimetype=mimetype, as_attachment=True, download_name=filename)
+
+
+@api.route("/files/<path:filename>", methods=["DELETE"])
+def delete_file(filename: str):
+    if not _is_safe_filename(filename):
+        return jsonify({"error": "invalid filename"}), 400
+    # Extension whitelist applied on DELETE: prevents deletion of non-media files
+    # that may end up in DOWNLOAD_DIR (e.g. .part, .json sidecar files).
+    if not _is_allowed_extension(filename):
+        return jsonify({"error": "file type not allowed"}), 400
+
+    filepath = os.path.join(DOWNLOAD_DIR, filename)
+    if not os.path.isfile(filepath):
+        return jsonify({"error": "file not found"}), 404
+
+    try:
+        os.remove(filepath)
+    except OSError:
+        return jsonify({"error": "could not delete file"}), 500
+    return jsonify({"status": "deleted", "filename": filename}), 200

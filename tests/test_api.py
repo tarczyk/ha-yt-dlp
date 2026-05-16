@@ -12,6 +12,14 @@ from unittest.mock import patch, MagicMock
 _TASK_ID = "test-task-adhoc-1"
 
 
+@pytest.fixture
+def temp_download_dir(tmp_path, monkeypatch):
+    download_dir = tmp_path / "downloads"
+    download_dir.mkdir()
+    monkeypatch.setattr(api_module, "DOWNLOAD_DIR", str(download_dir))
+    return download_dir
+
+
 def _make_task(task_id=_TASK_ID, url="https://youtube.com/watch?v=test", fmt="mp4"):
     with api_module._tasks_lock:
         api_module._tasks[task_id] = {
@@ -389,11 +397,112 @@ def test_task_detail_found(client):
     assert "status" in data
 
 
-def test_files_list(client):
+def test_files_list(client, temp_download_dir):
     response = client.get("/files")
     assert response.status_code == 200
     data = response.get_json()
     assert isinstance(data, list)
+
+
+def test_files_list_with_metadata(client, temp_download_dir):
+    media_file = temp_download_dir / "song.mp3"
+    media_file.write_bytes(b"abc")
+    nested_dir = temp_download_dir / "nested"
+    nested_dir.mkdir()
+    (nested_dir / "ignored.mp3").write_bytes(b"123")
+
+    response = client.get("/files")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, list)
+    assert len(data) == 1
+
+    item = data[0]
+    assert item["name"] == "song.mp3"
+    assert item["size"] == 3
+    assert item["type"] == "mp3"
+    assert isinstance(item["modified"], str)
+    from datetime import datetime, timezone
+    dt = datetime.fromisoformat(item["modified"].replace("Z", "+00:00"))
+    assert dt.tzinfo is not None
+    assert item["modified"].endswith("Z")
+
+
+def test_files_download_success(client, temp_download_dir):
+    media_file = temp_download_dir / "clip.mp4"
+    media_file.write_bytes(b"video")
+
+    response = client.get("/files/clip.mp4")
+
+    assert response.status_code == 200
+    assert response.mimetype == "video/mp4"
+    content_disposition = response.headers.get("Content-Disposition", "")
+    assert "attachment" in content_disposition
+    assert "clip.mp4" in content_disposition
+
+
+def test_files_download_path_traversal_blocked(client):
+    response = client.get("/files/../etc/passwd")
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "invalid filename"}
+
+
+def test_files_download_extension_not_allowed(client):
+    response = client.get("/files/malware.exe")
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "file type not allowed"}
+
+
+def test_files_download_not_found(client, temp_download_dir):
+    response = client.get("/files/missing.mp3")
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "file not found"}
+
+
+def test_files_delete_success(client, temp_download_dir):
+    media_file = temp_download_dir / "deleteme.mp3"
+    media_file.write_bytes(b"bye")
+
+    response = client.delete("/files/deleteme.mp3")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "deleted", "filename": "deleteme.mp3"}
+    assert not media_file.exists()
+
+
+def test_files_delete_not_found(client, temp_download_dir):
+    response = client.delete("/files/missing.mp3")
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "file not found"}
+
+
+def test_files_delete_path_traversal_blocked(client):
+    response = client.delete("/files/../../secret.mp3")
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "invalid filename"}
+
+
+def test_files_delete_extension_not_allowed(client):
+    response = client.delete("/files/malware.exe")
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "file type not allowed"}
+
+
+def test_files_download_url_encoded_traversal_blocked(client):
+    response = client.get("/files/%2e%2e%2fetc%2fpasswd")
+    assert response.status_code in (400, 404)
+
+
+def test_files_delete_url_encoded_traversal_blocked(client):
+    response = client.delete("/files/%2e%2e%2fetc%2fsecret.mp3")
+    assert response.status_code in (400, 404)
+
+
+def test_cors_includes_delete(client):
+    response = client.options("/files/clip.mp4")
+    assert response.status_code == 204
+    methods = response.headers.get("Access-Control-Allow-Methods", "")
+    assert "DELETE" in methods
 
 
 def test_download_video_mp3_format(client):
