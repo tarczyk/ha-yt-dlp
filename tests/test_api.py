@@ -343,6 +343,32 @@ def test_extract_filename_prefers_requested_downloads_filepath():
     assert api_module._extract_filename(info) == "real-name.mp3"
 
 
+@pytest.mark.parametrize(
+    "info,expected",
+    [
+        ({"_filename": "/tmp/downloads/fallback.mp4"}, "fallback.mp4"),
+        ({"filename": "/tmp/downloads/legacy-name.mkv"}, "legacy-name.mkv"),
+        (
+            {
+                "requested_downloads": [{"filepath": None}],
+                "_filename": "/tmp/downloads/from-underscore.mp4",
+            },
+            "from-underscore.mp4",
+        ),
+        (
+            {
+                "requested_downloads": [],
+                "filename": "/tmp/downloads/from-filename.webm",
+            },
+            "from-filename.webm",
+        ),
+        ({}, ""),
+    ],
+)
+def test_extract_filename_fallback_paths(info, expected):
+    assert api_module._extract_filename(info) == expected
+
+
 def test_health_200(client):
     response = client.get("/health")
     assert response.status_code == 200
