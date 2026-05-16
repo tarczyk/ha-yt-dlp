@@ -10,6 +10,7 @@ from app.yt_dlp_manager import (
 from unittest.mock import patch, MagicMock
 
 _TASK_ID = "test-task-adhoc-1"
+_MOCK_DOWNLOAD_DIR = "/tmp/downloads"
 
 
 @pytest.fixture
@@ -101,7 +102,7 @@ class TestRunDownloadAdHocUpdate:
                     raise Exception("403 Forbidden")
                 return {
                     "title": "Test Video",
-                    "_filename": "/tmp/downloads/Test Video.mp4",
+                    "_filename": f"{_MOCK_DOWNLOAD_DIR}/Test Video.mp4",
                 }
 
             with patch("app.api.download_video", side_effect=download_side_effect):
@@ -337,8 +338,8 @@ class TestTaskPruning:
 
 def test_extract_filename_prefers_requested_downloads_filepath():
     info = {
-        "_filename": "/tmp/downloads/fallback.mp4",
-        "requested_downloads": [{"filepath": "/tmp/downloads/real-name.mp3"}],
+        "_filename": f"{_MOCK_DOWNLOAD_DIR}/fallback.mp4",
+        "requested_downloads": [{"filepath": f"{_MOCK_DOWNLOAD_DIR}/real-name.mp3"}],
     }
     assert api_module._extract_filename(info) == "real-name.mp3"
 
@@ -346,19 +347,19 @@ def test_extract_filename_prefers_requested_downloads_filepath():
 @pytest.mark.parametrize(
     "info,expected",
     [
-        ({"_filename": "/tmp/downloads/fallback.mp4"}, "fallback.mp4"),
-        ({"filename": "/tmp/downloads/legacy-name.mkv"}, "legacy-name.mkv"),
+        ({"_filename": f"{_MOCK_DOWNLOAD_DIR}/fallback.mp4"}, "fallback.mp4"),
+        ({"filename": f"{_MOCK_DOWNLOAD_DIR}/legacy-name.mkv"}, "legacy-name.mkv"),
         (
             {
                 "requested_downloads": [{"filepath": None}],
-                "_filename": "/tmp/downloads/from-underscore.mp4",
+                "_filename": f"{_MOCK_DOWNLOAD_DIR}/from-underscore.mp4",
             },
             "from-underscore.mp4",
         ),
         (
             {
                 "requested_downloads": [],
-                "filename": "/tmp/downloads/from-filename.webm",
+                "filename": f"{_MOCK_DOWNLOAD_DIR}/from-filename.webm",
             },
             "from-filename.webm",
         ),

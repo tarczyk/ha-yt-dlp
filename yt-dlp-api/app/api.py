@@ -197,11 +197,13 @@ def _is_allowed_extension(filename: str) -> bool:
 def _extract_filename(info: dict) -> str:
     """Extract media filename from yt-dlp metadata.
 
-    Priority:
-    1) requested_downloads[*].filepath
-    2) _filename
-    3) filename
-    Returns empty string when no valid filename is available.
+    Extraction priority:
+      1. requested_downloads[*].filepath
+      2. _filename
+      3. filename
+
+    Returns:
+        Basename of the selected path, or an empty string when unavailable.
     """
     requested_downloads = info.get("requested_downloads") or []
     if isinstance(requested_downloads, list):
