@@ -532,7 +532,17 @@ class YtDlpCard extends HTMLElement {
   }
 
   _fileDownloadUrl(filename) {
+    if (!this._isSafeFilename(filename)) return "#";
     return `${this._apiUrl}/files/${encodeURIComponent(filename)}`;
+  }
+
+  _isSafeFilename(filename) {
+    return typeof filename === "string"
+      && filename.length > 0
+      && !filename.includes("..")
+      && !filename.includes("/")
+      && !filename.includes("\\")
+      && !filename.includes("\x00");
   }
 
   _truncate(str, max) {

@@ -358,6 +358,12 @@ def test_extract_filename_prefers_requested_downloads_filepath():
         ),
         (
             {
+                "requested_downloads": ["bad-item", {"filepath": f"{_MOCK_DOWNLOAD_DIR}/from-requested.ogg"}],
+            },
+            "from-requested.ogg",
+        ),
+        (
+            {
                 "requested_downloads": [],
                 "filename": f"{_MOCK_DOWNLOAD_DIR}/from-filename.webm",
             },
