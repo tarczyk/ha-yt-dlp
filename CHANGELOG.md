@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.18] - 2026-09-04
+
+### Fixed
+- Enable `homeassistant_api` so HA notifications and `ha_yt_dlp_update_failed` events work (fixes HTTP 401).
+- Add optional `cookies_file` option (default `youtube_cookies.txt`) with `/config` read-only map for YouTube auth.
+- Run `pip install -U yt-dlp` with `--break-system-packages` in the updater (fixes exit code 1 on Alpine).
+- Log pip stderr when yt-dlp auto-update fails.
+
 ## [1.0.17] - 2026-05-03
 
 ### Changed

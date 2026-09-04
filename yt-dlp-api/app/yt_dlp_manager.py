@@ -1,11 +1,14 @@
 import json
 import logging
+import os
 import sys
 import urllib.error
 import urllib.request
 from typing import Callable
 
 import yt_dlp
+
+logger = logging.getLogger(__name__)
 
 # Task status constants — single source of truth; never use inline strings in new code paths
 TASK_STATUS_DOWNLOADING = "downloading"
@@ -80,6 +83,18 @@ def check_ytdlp_version(timeout: int = 5) -> dict[str, str | bool | None]:
     return result
 
 
+def _cookies_file() -> str | None:
+    """Return cookies path from COOKIES_FILE env when the file exists."""
+    path = os.environ.get("COOKIES_FILE", "").strip()
+    if not path:
+        return None
+    if os.path.isfile(path):
+        logger.info("Using cookies file: %s", path)
+        return path
+    logger.warning("Cookies file configured but missing: %s", path)
+    return None
+
+
 def _yt_dlp_logger():
     """Logger that writes yt-dlp messages to stderr so they appear in addon logs."""
     log = logging.getLogger("yt-dlp")
@@ -130,6 +145,10 @@ def download_video(
             },
         },
     }
+
+    cookies_path = _cookies_file()
+    if cookies_path:
+        common_opts["cookiefile"] = cookies_path
 
     if format_type == "mp3":
         ydl_opts = {

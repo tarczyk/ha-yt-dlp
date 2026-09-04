@@ -13,14 +13,19 @@ ports:
   5000/tcp: 5000
 ports_description:
   5000/tcp: "yt-dlp Flask API"
+homeassistant_api: true
 options:
   port: 5000
   media_subdir: youtube_downloads
+  cookies_file: youtube_cookies.txt
 schema:
   port: int
   media_subdir: str
+  cookies_file: str?
 startup: application
 init: false
 map:
   # Grants rw access to the HA /media share so downloads appear in Media Browser
   - media:rw
+  # Read-only access to HA /config for optional YouTube cookies file
+  - config:ro

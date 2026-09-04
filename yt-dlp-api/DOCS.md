@@ -17,12 +17,14 @@ This add-on runs the **yt-dlp REST API** inside Home Assistant OS, enabling you 
 |--------|---------|-------------|
 | `port` | `5000` | TCP port the Flask API listens on inside the container |
 | `media_subdir` | `youtube_downloads` | Subfolder under HA `/media` where downloads are saved (e.g. `youtube_downloads`, `videos`, `downloads`) |
+| `cookies_file` | `youtube_cookies.txt` | Optional filename under HA `/config` with Netscape cookies for YouTube. Leave empty to disable. |
 
 Example:
 
 ```yaml
 port: 5000
 media_subdir: youtube_downloads
+cookies_file: youtube_cookies.txt
 ```
 
 To save videos to a different folder in **Media Browser** (e.g. **My media → videos**), set `media_subdir: videos`. Only letters, numbers, underscores, hyphens and dots are allowed.

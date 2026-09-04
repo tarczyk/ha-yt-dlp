@@ -233,7 +233,7 @@ class TestUpdateIfNeededSuccess:
                 updater.update_if_needed("test")
 
         mock_sub.assert_called_once_with(
-            ["pip", "install", "-U", "yt-dlp"],
+            ["pip", "install", "-U", "--break-system-packages", "yt-dlp"],
             capture_output=True,
             text=True,
             timeout=120,

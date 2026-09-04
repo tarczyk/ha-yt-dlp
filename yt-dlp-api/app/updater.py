@@ -193,7 +193,7 @@ class Updater:
                         component, reason, version_before)
 
             result = subprocess.run(
-                ["pip", "install", "-U", "yt-dlp"],
+                ["pip", "install", "-U", "--break-system-packages", "yt-dlp"],
                 capture_output=True,
                 text=True,
                 timeout=120,
@@ -216,7 +216,12 @@ class Updater:
                     version_after=version_after,
                 )
             else:
+                stderr = (result.stderr or "").strip()
+                if stderr:
+                    logger.error("[UPDATER] pip stderr: %s", stderr[-2000:])
                 error_msg = f"subprocess exit code {result.returncode}"
+                if stderr:
+                    error_msg = f"{error_msg}: {stderr[-500:]}"
                 self._state["update_status"] = "failed"
                 self._state["last_error"] = error_msg
                 self._save_state()

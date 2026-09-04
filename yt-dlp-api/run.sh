@@ -11,4 +11,18 @@ export MEDIA_SUBDIR
 export DOWNLOAD_DIR="/media/${MEDIA_SUBDIR}"
 mkdir -p "$DOWNLOAD_DIR"
 
+# Optional Netscape cookies file under /config (e.g. youtube_cookies.txt).
+COOKIES_FILE=$(bashio::config 'cookies_file' '')
+if [[ -n "$COOKIES_FILE" ]]; then
+    COOKIES_BASENAME=$(basename "$COOKIES_FILE")
+    if [[ "$COOKIES_BASENAME" == "$COOKIES_FILE" ]]; then
+        export COOKIES_FILE="/config/${COOKIES_BASENAME}"
+    else
+        bashio::log.warning "cookies_file must be a filename under /config — ignoring: ${COOKIES_FILE}"
+        unset COOKIES_FILE
+    fi
+else
+    unset COOKIES_FILE
+fi
+
 exec python3 -m flask --app app run --host=0.0.0.0 --port="${PORT}"
