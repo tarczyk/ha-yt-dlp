@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.18] - 2026-09-04
+## [1.0.19] - 2026-09-04
 
 ### Fixed
 - Enable `homeassistant_api` so HA notifications and `ha_yt_dlp_update_failed` events work (fixes HTTP 401).
