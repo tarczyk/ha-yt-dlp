@@ -19,7 +19,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Determine release tag
         id: tag
@@ -54,7 +54,7 @@ jobs:
           if [ -s release-notes.md ]; then echo "has_notes=true" >> $GITHUB_OUTPUT; fi
 
       - name: Create Release and upload assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.effective_tag }}
           files: |
