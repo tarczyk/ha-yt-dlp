@@ -335,8 +335,13 @@ class TestBestVideoFormatSelection:
         assert ext != "mkv"
 
 
+# ---------------------------------------------------------------------------
+# max_video_height — resolution cap for the video profiles
+# ---------------------------------------------------------------------------
+
 _AV1_8K = _fmt("v_av1_8k", "mp4", "av01.0.17M.08", "none", 4320)
 _VP9_4K = _fmt("v_vp9_4k", "webm", "vp09.00.51.08", "none", 2160)
+_H264_1440 = _fmt("v_h264_1440", "mp4", "avc1.640032", "none", 1440)
 
 
 class TestBestVideoMaxHeight:
@@ -347,8 +352,7 @@ class TestBestVideoMaxHeight:
         assert _select_best([_OPUS, _VP9_4K, _AV1_8K], max_height=2160) == (["v_vp9_4k", "a_opus"], "webm")
 
     def test_limit_applies_to_h264_fallback(self):
-        h264_1440 = _fmt("v_h264_1440", "mp4", "avc1.640032", "none", 1440)
-        assert _select_best([_AAC, _H264, h264_1440], max_height=1080) == (["v_h264", "a_aac"], "mp4")
+        assert _select_best([_AAC, _H264, _H264_1440], max_height=1080) == (["v_h264", "a_aac"], "mp4")
 
     def test_limit_applies_to_progressive_fallback(self):
         p_720 = _fmt("p_720", "mp4", "avc1.64001F", "mp4a.40.2", 720)
@@ -365,13 +369,11 @@ class TestBestVideoMaxHeight:
 
 
 class TestMp4MaxHeight:
-    _H264_1440 = _fmt("v_h264_1440", "mp4", "avc1.640032", "none", 1440)
-
     def test_highest_h264_is_downloaded_without_a_limit(self):
-        assert _select_mp4([_AAC, _H264, self._H264_1440]) == ["v_h264_1440", "a_aac"]
+        assert _select_mp4([_AAC, _H264, _H264_1440]) == ["v_h264_1440", "a_aac"]
 
     def test_limit_caps_h264_resolution(self):
-        assert _select_mp4([_AAC, _H264, self._H264_1440], max_height=1080) == ["v_h264", "a_aac"]
+        assert _select_mp4([_AAC, _H264, _H264_1440], max_height=1080) == ["v_h264", "a_aac"]
 
     def test_limit_applies_to_fallback_without_h264(self):
         av1_1080 = _fmt("v_av1_1080", "mp4", "av01.0.08M.08", "none", 1080)
@@ -386,7 +388,7 @@ class TestAudioProfilesIgnoreMaxHeight:
 
 
 class TestDownloadVideoMaxHeight:
-    """``download_video`` reads the add-on option from MAX_VIDEO_HEIGHT (exported by run.sh)."""
+    """``download_video`` reads the add-on option from the MAX_VIDEO_HEIGHT env var."""
 
     @staticmethod
     def _format_for(profile, monkeypatch, env_value):
@@ -416,6 +418,10 @@ class TestDownloadVideoMaxHeight:
     @pytest.mark.parametrize("env_value", ["", "  ", "abc", "0", "-1", "1080.5"])
     def test_invalid_value_is_ignored(self, env_value, monkeypatch):
         assert self._format_for(BEST_VIDEO, monkeypatch, env_value) == BEST_VIDEO.yt_dlp_opts()["format"]
+
+
+# ---------------------------------------------------------------------------
+# Faststart post-processor
 # ---------------------------------------------------------------------------
 
 def _first_atoms(path):

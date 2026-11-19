@@ -36,35 +36,35 @@ def _height_cap(max_height: int | None) -> str:
 
 
 def _mp4_opts(max_height: int | None = None) -> dict:
-    h = _height_cap(max_height)
+    cap = _height_cap(max_height)
     return {
         # H.264 + AAC first: AV1/VP9 in MP4 are rejected by DLNA TVs (see ADR 0001).
         # Branches 1-2 cover every H.264 + AAC source (merged or progressive). Branches 3+ are the
         # previous selector and are reached only when the source has no H.264 + AAC at all.
         "format": (
-            f"bestvideo[vcodec^=avc1][ext=mp4]{h}+bestaudio[acodec^=mp4a][ext=m4a]"
-            f"/best[vcodec^=avc1][acodec^=mp4a][ext=mp4]{h}"
-            f"/bestvideo[ext=mp4]{h}+bestaudio[ext=m4a]"
-            f"/bestvideo{h}+bestaudio"
-            f"/best[ext=mp4]{h}"
-            f"/best{h}"
+            f"bestvideo[vcodec^=avc1][ext=mp4]{cap}+bestaudio[acodec^=mp4a][ext=m4a]"
+            f"/best[vcodec^=avc1][acodec^=mp4a][ext=mp4]{cap}"
+            f"/bestvideo[ext=mp4]{cap}+bestaudio[ext=m4a]"
+            f"/bestvideo{cap}+bestaudio"
+            f"/best[ext=mp4]{cap}"
+            f"/best{cap}"
         ),
         "merge_output_format": "mp4",
     }
 
 
 def _best_video_opts(max_height: int | None = None) -> dict:
-    h = _height_cap(max_height)
+    cap = _height_cap(max_height)
     return {
         # Original quality without re-encoding. AV1/VP9 + Opus merge into WebM, which DLNA TVs play (ADR 0001).
         # AV1/VP9 without Opus deliberately falls to H.264 + AAC: the only container left for it is MP4,
         # which the TV rejects for AV1/VP9. Progressive files come last; prefer MP4, never fail outright.
         "format": (
-            f"bestvideo[vcodec~='^(av01|vp9|vp09)']{h}+bestaudio[acodec=opus]"
-            f"/bestvideo[vcodec^=avc1]{h}+bestaudio[acodec^=mp4a]"
-            f"/best[ext=mp4]{h}"
-            f"/best[ext=webm]{h}"
-            f"/best{h}"
+            f"bestvideo[vcodec~='^(av01|vp9|vp09)']{cap}+bestaudio[acodec=opus]"
+            f"/bestvideo[vcodec^=avc1]{cap}+bestaudio[acodec^=mp4a]"
+            f"/best[ext=mp4]{cap}"
+            f"/best[ext=webm]{cap}"
+            f"/best{cap}"
         ),
         # Ordered preference: first container that can hold the selected streams. Without mkv in the
         # list yt-dlp never picks MKV.
