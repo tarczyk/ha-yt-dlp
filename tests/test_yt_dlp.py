@@ -67,6 +67,52 @@ def test_download_video_mp4_uses_video_format():
     assert captured_opts.get("merge_output_format") == "mp4"
 
 
+def test_download_video_uses_cookies_file_when_present(tmp_path, monkeypatch):
+    """Verify COOKIES_FILE env is passed to yt-dlp when the file exists."""
+    from app.yt_dlp_manager import download_video
+
+    cookies = tmp_path / "youtube_cookies.txt"
+    cookies.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    monkeypatch.setenv("COOKIES_FILE", str(cookies))
+
+    captured_opts = {}
+
+    def fake_ydl_class(opts):
+        captured_opts.update(opts)
+        instance = MagicMock()
+        instance.__enter__ = MagicMock(return_value=instance)
+        instance.__exit__ = MagicMock(return_value=False)
+        instance.extract_info.return_value = {"title": "Test"}
+        return instance
+
+    with patch("yt_dlp.YoutubeDL", side_effect=fake_ydl_class):
+        download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+    assert captured_opts.get("cookiefile") == str(cookies)
+
+
+def test_download_video_skips_missing_cookies_file(tmp_path, monkeypatch):
+    """Verify missing COOKIES_FILE does not break downloads."""
+    from app.yt_dlp_manager import download_video
+
+    monkeypatch.setenv("COOKIES_FILE", str(tmp_path / "missing.txt"))
+
+    captured_opts = {}
+
+    def fake_ydl_class(opts):
+        captured_opts.update(opts)
+        instance = MagicMock()
+        instance.__enter__ = MagicMock(return_value=instance)
+        instance.__exit__ = MagicMock(return_value=False)
+        instance.extract_info.return_value = {"title": "Test"}
+        return instance
+
+    with patch("yt_dlp.YoutubeDL", side_effect=fake_ydl_class):
+        download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+    assert "cookiefile" not in captured_opts
+
+
 def test_download_timeout():
     """Verify that a socket timeout triggers an exception during download."""
     from app.yt_dlp_manager import download_video
