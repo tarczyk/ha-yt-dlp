@@ -67,9 +67,11 @@ def _best_video_opts() -> dict:
 def _best_audio_opts() -> dict:
     return {
         # Opus first (plays on a WiiM through HA's DLNA renderer, ADR 0001); otherwise the best stream
-        # on offer, typically AAC (.m4a, hidden by HA for the WiiM).
-        "format": "bestaudio[acodec=opus]/bestaudio",
-        # preferredcodec "best" is a stream copy into an audio-only file (webm/opus -> .opus, AAC -> .m4a).
+        # on offer, typically AAC (.m4a, hidden by HA for the WiiM). Progressive files come last so a
+        # source without audio-only streams still succeeds; their audio is copied out, not re-encoded.
+        "format": "bestaudio[acodec=opus]/bestaudio/best",
+        # preferredcodec "best" is a stream copy into an audio-only file (webm/opus -> .opus, AAC -> .m4a,
+        # Vorbis -> .ogg). yt-dlp re-encodes to MP3 only for codecs it cannot copy (none on YouTube).
         # Never set a codec or quality here: re-encoding would make this profile identical to MP3.
         "postprocessors": [{
             "key": "FFmpegExtractAudio",

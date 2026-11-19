@@ -455,3 +455,73 @@ class TestBestAudio:
         chosen = ydl.build_format_selector(BEST_AUDIO.yt_dlp_opts()["format"])
         picked = list(chosen({"formats": formats, "incomplete_formats": False}))
         assert [f["format_id"] for f in picked] == ["aac"]
+
+    def test_selector_falls_back_to_progressive_when_no_audio_only_stream(self):
+        """E.g. a YouTube SABR session that offers only format 18 (H.264 + AAC in MP4)."""
+        import yt_dlp
+        from app.profiles import BEST_AUDIO
+
+        formats = [_fmt("18", "mp4", "avc1.42001E", "mp4a.40.2", height=240)]
+        ydl = yt_dlp.YoutubeDL({"quiet": True})
+        chosen = ydl.build_format_selector(BEST_AUDIO.yt_dlp_opts()["format"])
+        picked = list(chosen({"formats": formats, "incomplete_formats": False}))
+        assert [f["format_id"] for f in picked] == ["18"]
+
+
+class TestBestAudioPostProcessing:
+    """Runs the configured FFmpegExtractAudio with a mocked codec probe and ffmpeg call."""
+
+    @staticmethod
+    def _run(tmp_path, ext, codec):
+        from unittest.mock import patch
+
+        import yt_dlp
+        from app.profiles import BEST_AUDIO
+        from yt_dlp.postprocessor import FFmpegExtractAudioPP
+
+        (pp_opts,) = BEST_AUDIO.yt_dlp_opts()["postprocessors"]
+        pp = FFmpegExtractAudioPP(
+            yt_dlp.YoutubeDL({"quiet": True}), **{k: v for k, v in pp_opts.items() if k != "key"},
+        )
+        src = tmp_path / f"Song [best].{ext}"
+        src.write_bytes(b"audio")
+
+        def fake_ffmpeg(_path, out_path, _codec, _opts):
+            with open(out_path, "wb") as f:
+                f.write(b"converted")
+
+        with patch.object(pp, "get_audio_codec", return_value=codec), \
+                patch.object(pp, "run_ffmpeg", side_effect=fake_ffmpeg) as run_ffmpeg:
+            _, info = pp.run({"filepath": str(src), "ext": ext})
+        return info["filepath"], run_ffmpeg
+
+    def test_opus_in_webm_is_copied_to_opus(self, tmp_path):
+        path, run_ffmpeg = self._run(tmp_path, "webm", "opus")
+
+        assert path.endswith("Song [best].opus")
+        assert run_ffmpeg.call_args[0][2] == "copy"
+
+    def test_aac_in_m4a_is_left_untouched(self, tmp_path):
+        path, run_ffmpeg = self._run(tmp_path, "m4a", "aac")
+
+        assert path.endswith("Song [best].m4a")
+        run_ffmpeg.assert_not_called()
+
+    def test_vorbis_in_webm_is_copied_to_ogg(self, tmp_path):
+        path, run_ffmpeg = self._run(tmp_path, "webm", "vorbis")
+
+        assert path.endswith("Song [best].ogg")
+        assert run_ffmpeg.call_args[0][2] == "copy"
+
+    def test_aac_in_progressive_mp4_is_copied_to_m4a(self, tmp_path):
+        path, run_ffmpeg = self._run(tmp_path, "mp4", "aac")
+
+        assert path.endswith("Song [best].m4a")
+        assert run_ffmpeg.call_args[0][2] == "copy"
+
+    def test_unknown_codec_falls_back_to_mp3_re_encode(self, tmp_path):
+        """Known yt-dlp limitation, documented in DOCS.md: never reached on YouTube."""
+        path, run_ffmpeg = self._run(tmp_path, "webm", "eac3")
+
+        assert path.endswith("Song [best].mp3")
+        assert run_ffmpeg.call_args[0][2] == "libmp3lame"

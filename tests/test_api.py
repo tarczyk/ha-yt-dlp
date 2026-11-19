@@ -694,7 +694,7 @@ def test_files_download_opus_mime_type(client, temp_download_dir):
     response = client.get("/files/Song [best].opus")
 
     assert response.status_code == 200
-    assert response.mimetype == "audio/ogg"
+    assert response.mimetype == "audio/opus"
 
 
 def test_files_delete_opus(client, temp_download_dir):

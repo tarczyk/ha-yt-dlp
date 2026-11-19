@@ -19,7 +19,8 @@ Measured on 2026-11-06 with a Samsung QE65Q80A (2021) and a WiiM Pro, both via H
 
 - **Let yt-dlp choose the container**: rejected; it falls back to MKV when codecs don't share a container.
 - **Always MKV**: rejected; hidden by HA for the Samsung renderer.
-- **Best Audio as AAC `.m4a`, or re-encode to MP3 when Opus is missing**: rejected; `.m4a` is hidden for the WiiM anyway, and re-encoding would make Best Audio indistinguishable from the MP3 profile.
+- **Prefer AAC `.m4a` for Best Audio**: rejected; `.m4a` is hidden for the WiiM, so Opus is always picked when the source has it. `.m4a` remains only as the no-re-encode result for AAC-only sources.
+- **Re-encode to MP3 when Opus is missing**: rejected; it would make Best Audio indistinguishable from the MP3 profile.
 
 ## Consequences
 

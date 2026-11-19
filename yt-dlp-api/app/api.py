@@ -69,7 +69,7 @@ MIME_TYPES = {
     "avi": "video/x-msvideo",
     "wav": "audio/wav",
     "ogg": "audio/ogg",
-    "opus": "audio/ogg",
+    "opus": "audio/opus",
     "flac": "audio/flac",
 }
 
