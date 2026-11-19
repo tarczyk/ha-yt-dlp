@@ -22,6 +22,7 @@ schema:
   port: int
   media_subdir: str
   cookies_file: str?
+  max_video_height: int(1,)?
 startup: application
 init: false
 map:

@@ -20,43 +20,51 @@ class DownloadProfile:
     """One download profile (e.g. mp4, best_video, mp3, best_audio)."""
 
     api_value: str
-    # Returns yt-dlp option keys that differ between profiles.
+    # Returns yt-dlp option keys that differ between profiles. Takes ``max_height`` (int or None):
+    # video profiles cap the resolution to it, audio profiles ignore it.
     # Kept as a callable so each invocation gets an isolated options dict without shared mutable state.
-    yt_dlp_opts: Callable[[], dict]
+    yt_dlp_opts: Callable[..., dict]
     # Appended to the title, before the extension (e.g. " [best]"), so profiles never overwrite each other's files.
     filename_suffix: str = ""
     # Rewrite the final MP4 with the index at the start (see ``FastStartPP``). Needed by DLNA TVs.
     faststart: bool = False
 
 
-def _mp4_opts() -> dict:
+def _height_cap(max_height: int | None) -> str:
+    # "<=?" also accepts formats without height info, so sources lacking metadata still download.
+    return f"[height<=?{max_height}]" if max_height else ""
+
+
+def _mp4_opts(max_height: int | None = None) -> dict:
+    cap = _height_cap(max_height)
     return {
         # H.264 + AAC first: AV1/VP9 in MP4 are rejected by DLNA TVs (see ADR 0001).
         # Branches 1-2 cover every H.264 + AAC source (merged or progressive). Branches 3+ are the
         # previous selector and are reached only when the source has no H.264 + AAC at all.
         "format": (
-            "bestvideo[vcodec^=avc1][ext=mp4]+bestaudio[acodec^=mp4a][ext=m4a]"
-            "/best[vcodec^=avc1][acodec^=mp4a][ext=mp4]"
-            "/bestvideo[ext=mp4]+bestaudio[ext=m4a]"
-            "/bestvideo+bestaudio"
-            "/best[ext=mp4]"
-            "/best"
+            f"bestvideo[vcodec^=avc1][ext=mp4]{cap}+bestaudio[acodec^=mp4a][ext=m4a]"
+            f"/best[vcodec^=avc1][acodec^=mp4a][ext=mp4]{cap}"
+            f"/bestvideo[ext=mp4]{cap}+bestaudio[ext=m4a]"
+            f"/bestvideo{cap}+bestaudio"
+            f"/best[ext=mp4]{cap}"
+            f"/best{cap}"
         ),
         "merge_output_format": "mp4",
     }
 
 
-def _best_video_opts() -> dict:
+def _best_video_opts(max_height: int | None = None) -> dict:
+    cap = _height_cap(max_height)
     return {
         # Original quality without re-encoding. AV1/VP9 + Opus merge into WebM, which DLNA TVs play (ADR 0001).
         # AV1/VP9 without Opus deliberately falls to H.264 + AAC: the only container left for it is MP4,
         # which the TV rejects for AV1/VP9. Progressive files come last; prefer MP4, never fail outright.
         "format": (
-            "bestvideo[vcodec~='^(av01|vp9|vp09)']+bestaudio[acodec=opus]"
-            "/bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]"
-            "/best[ext=mp4]"
-            "/best[ext=webm]"
-            "/best"
+            f"bestvideo[vcodec~='^(av01|vp9|vp09)']{cap}+bestaudio[acodec=opus]"
+            f"/bestvideo[vcodec^=avc1]{cap}+bestaudio[acodec^=mp4a]"
+            f"/best[ext=mp4]{cap}"
+            f"/best[ext=webm]{cap}"
+            f"/best{cap}"
         ),
         # Ordered preference: first container that can hold the selected streams. Without mkv in the
         # list yt-dlp never picks MKV.
@@ -64,7 +72,7 @@ def _best_video_opts() -> dict:
     }
 
 
-def _best_audio_opts() -> dict:
+def _best_audio_opts(max_height: int | None = None) -> dict:
     # Codecs FFmpegExtractAudio can stream-copy into an audio-only file. For any other codec it silently
     # re-encodes to MP3, so those sources must fail instead.
     copyable = "acodec~='^(opus|mp4a|vorbis|flac|mp3|alac)'"
@@ -82,7 +90,7 @@ def _best_audio_opts() -> dict:
     }
 
 
-def _mp3_opts() -> dict:
+def _mp3_opts(max_height: int | None = None) -> dict:
     return {
         # Download best audio and convert to MP3.
         "format": "bestaudio/best",

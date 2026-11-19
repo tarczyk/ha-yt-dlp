@@ -25,4 +25,11 @@ else
     unset COOKIES_FILE
 fi
 
+# Optional resolution cap for the MP4 and Best Video profiles (e.g. 2160). Empty means no limit.
+if bashio::config.has_value 'max_video_height'; then
+    export MAX_VIDEO_HEIGHT=$(bashio::config 'max_video_height')
+else
+    unset MAX_VIDEO_HEIGHT
+fi
+
 exec python3 -m flask --app app run --host=0.0.0.0 --port="${PORT}"

@@ -98,6 +98,17 @@ def _cookies_file() -> str | None:
     return None
 
 
+def _max_video_height() -> int | None:
+    """Return the video resolution cap from MAX_VIDEO_HEIGHT env, or None for no limit."""
+    raw = os.environ.get("MAX_VIDEO_HEIGHT", "").strip()
+    if not raw:
+        return None
+    if raw.isdecimal() and int(raw) > 0:
+        return int(raw)
+    logger.warning("Ignoring invalid MAX_VIDEO_HEIGHT: %r", raw)
+    return None
+
+
 def _yt_dlp_logger():
     """Logger that writes yt-dlp messages to stderr so they appear in addon logs."""
     log = logging.getLogger("yt-dlp")
@@ -165,7 +176,7 @@ def download_video(
     if cookies_path:
         common_opts["cookiefile"] = cookies_path
 
-    ydl_opts = {**common_opts, **profile.yt_dlp_opts()}
+    ydl_opts = {**common_opts, **profile.yt_dlp_opts(max_height=_max_video_height())}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         if profile.faststart:
