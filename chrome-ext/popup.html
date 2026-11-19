@@ -73,6 +73,11 @@
       gap: 16px;
       align-items: center;
     }
+    .format-hint {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
     .format-row label {
       display: flex;
       align-items: center;
@@ -257,9 +262,11 @@
   <div class="field">
     <label>Format</label>
     <div class="format-row">
-      <label><input type="radio" name="format" id="formatMp4" value="mp4" checked /> MP4 (video)</label>
-      <label><input type="radio" name="format" id="formatMp3" value="mp3" /> MP3 (audio only)</label>
+      <label><input type="radio" name="format" id="formatMp4" value="mp4" checked /> MP4 (compatible video)</label>
+      <label><input type="radio" name="format" id="formatBest" value="best_video" /> Best video (original quality)</label>
+      <label><input type="radio" name="format" id="formatMp3" value="mp3" /> MP3 (compatible audio)</label>
     </div>
+    <div class="format-hint" id="formatHint" hidden>Original codec. May not play on every device; use MP4/MP3 if it doesn't.</div>
   </div>
 
   <button id="downloadBtn">

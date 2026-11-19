@@ -136,7 +136,7 @@ def download_video(
         profile = resolved
 
     common_opts = {
-        "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
+        "outtmpl": f"{output_dir}/%(title)s{profile.filename_suffix}.%(ext)s",
         "quiet": True,
         "logger": _yt_dlp_logger(),
         "socket_timeout": timeout,

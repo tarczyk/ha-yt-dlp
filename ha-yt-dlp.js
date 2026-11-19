@@ -69,6 +69,11 @@ const STYLES = `
   .url-input:focus {
     border-color: var(--primary-color, #03a9f4);
   }
+  .format-hint {
+    flex-basis: 100%;
+    font-size: 0.8em;
+    color: var(--secondary-text-color);
+  }
   .format-select {
     padding: 10px 8px;
     border: 1px solid var(--divider-color, #e0e0e0);
@@ -387,9 +392,11 @@ class YtDlpCard extends HTMLElement {
             id="url-input"
           />
           <select class="format-select" id="format-select">
-            <option value="mp4"${this._format === "mp4" ? " selected" : ""}>MP4 (Video)</option>
-            <option value="mp3"${this._format === "mp3" ? " selected" : ""}>MP3 (Audio)</option>
+            <option value="mp4"${this._format === "mp4" ? " selected" : ""}>MP4 (compatible video)</option>
+            <option value="best_video"${this._format === "best_video" ? " selected" : ""}>Best video (original quality)</option>
+            <option value="mp3"${this._format === "mp3" ? " selected" : ""}>MP3 (compatible audio)</option>
           </select>
+          <div class="format-hint" id="format-hint"${this._format === "best_video" ? "" : " hidden"}>Original codec. May not play on every device; use MP4/MP3 if it doesn't.</div>
           <button
             class="btn-download"
             id="btn-download"
@@ -416,6 +423,8 @@ class YtDlpCard extends HTMLElement {
     });
     root.getElementById("format-select").addEventListener("change", (e) => {
       this._format = e.target.value;
+      const hint = root.getElementById("format-hint");
+      if (hint) hint.hidden = this._format !== "best_video";
     });
     root.getElementById("btn-download").addEventListener("click", () => {
       this._handleDownload();

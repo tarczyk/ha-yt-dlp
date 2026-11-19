@@ -206,3 +206,50 @@ class TestEndpointFormatValidation:
                 json={"url": "https://youtube.com/watch?v=abc", "format": "mp3"},
             )
         assert resp.status_code == 202
+
+
+class TestBestVideo:
+    def test_registered_and_allowed(self):
+        from app.profiles import ALLOWED_VALUES, BEST_VIDEO, get_profile
+
+        assert get_profile("best_video") is BEST_VIDEO
+        assert "best_video" in ALLOWED_VALUES
+
+    def test_prefers_modern_codecs_with_opus(self):
+        from app.profiles import BEST_VIDEO
+
+        first = BEST_VIDEO.yt_dlp_opts()["format"].split("/")[0]
+        assert "av01" in first and "vp9" in first
+        assert "acodec=opus" in first
+
+    def test_h264_only_fallback_uses_aac(self):
+        from app.profiles import BEST_VIDEO
+
+        second = BEST_VIDEO.yt_dlp_opts()["format"].split("/")[1]
+        assert "vcodec^=avc1" in second and "acodec^=mp4a" in second
+
+    def test_container_is_webm_then_mp4_never_mkv(self):
+        from app.profiles import BEST_VIDEO
+
+        opts = BEST_VIDEO.yt_dlp_opts()
+        assert opts["merge_output_format"] == "webm/mp4"
+        assert "mkv" not in str(opts)
+
+    def test_filename_suffix_distinguishes_from_mp4(self):
+        from app.profiles import BEST_VIDEO, MP3, MP4
+
+        assert BEST_VIDEO.filename_suffix == " [best]"
+        assert MP4.filename_suffix == ""
+        assert MP3.filename_suffix == ""
+
+    def test_outtmpl_includes_suffix(self):
+        from unittest.mock import MagicMock, patch
+
+        from app.profiles import BEST_VIDEO, MP4
+        from app.yt_dlp_manager import download_video
+
+        for profile, expected in ((BEST_VIDEO, "/d/%(title)s [best].%(ext)s"), (MP4, "/d/%(title)s.%(ext)s")):
+            with patch("app.yt_dlp_manager.yt_dlp.YoutubeDL") as ydl:
+                ydl.return_value.__enter__.return_value = MagicMock(extract_info=MagicMock(return_value={}))
+                download_video("https://x", output_dir="/d", profile=profile)
+            assert ydl.call_args[0][0]["outtmpl"] == expected

@@ -33,6 +33,16 @@ To save videos to a different folder in **Media Browser** (e.g. **My media → v
 
 Downloaded files are written to `/media/<media_subdir>` inside the container, which is mapped to the HA `/media` share. They appear in **Media Browser → My media → &lt;media_subdir&gt;**.
 
+## Download profiles
+
+| Profile (`format`) | Result | When to use |
+|---|---|---|
+| `mp4` — MP4 (compatible video) | H.264 + AAC in `Title.mp4`, typically up to 1080p | Default. Plays on TVs and phones, including DLNA renderers. |
+| `best_video` — Best video (original quality) | Best video + audio without re-encoding, e.g. AV1/VP9 + Opus in `Title [best].webm` (4K when the source has it). `Title [best].mp4` only if the source offers nothing but H.264. Never MKV. | Highest quality. The original codec may not play on every device; use MP4 if it doesn't. |
+| `mp3` — MP3 (compatible audio) | Audio only in `Title.mp3` | Music or podcasts. |
+
+The `[best]` suffix keeps a Best video download from overwriting an MP4 download of the same video.
+
 ## Using with the Lovelace card
 
 Install the **yt-dlp Downloader Card** via HACS (add `https://github.com/tarczyk/ha-yt-dlp` as a custom Lovelace repository). Then add the card to your dashboard:

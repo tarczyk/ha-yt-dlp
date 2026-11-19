@@ -21,6 +21,19 @@ const haFrontendInput  = document.getElementById('haFrontendUrl');
 const videoUrlInput    = document.getElementById('videoUrl');
 const formatMp4Radio   = document.getElementById('formatMp4');
 const formatMp3Radio   = document.getElementById('formatMp3');
+const formatBestRadio  = document.getElementById('formatBest');
+const formatHint       = document.getElementById('formatHint');
+const formatRadios     = [formatMp4Radio, formatBestRadio, formatMp3Radio];
+
+function selectedFormatValue() {
+  const checked = formatRadios.find((r) => r.checked);
+  return checked ? checked.value : 'mp4';
+}
+
+function updateFormatHint() {
+  formatHint.hidden = selectedFormatValue() !== 'best_video';
+}
+formatRadios.forEach((r) => r.addEventListener('change', updateFormatHint));
 const downloadBtn      = document.getElementById('downloadBtn');
 const statusEl         = document.getElementById('status');
 const statusTextEl     = document.getElementById('statusText');
@@ -176,11 +189,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (result[STORAGE_KEY_HA_FRONTEND]) {
       haFrontendInput.value = result[STORAGE_KEY_HA_FRONTEND];
     }
-    if (result[STORAGE_KEY_FORMAT] === 'mp3') {
-      formatMp3Radio.checked = true;
-    } else {
-      formatMp4Radio.checked = true;
-    }
+    const savedFormat = result[STORAGE_KEY_FORMAT];
+    const savedRadio = formatRadios.find((r) => r.value === savedFormat);
+    (savedRadio || formatMp4Radio).checked = true;
+    updateFormatHint();
   });
 
   // Auto-fill video URL from active YouTube tab
@@ -255,7 +267,7 @@ downloadBtn.addEventListener('click', async () => {
 
   // Send only the single-video URL (strip list= / start_radio=) so only this video is downloaded
   const singleVideoUrl = toSingleVideoUrl(videoUrl);
-  const selectedFormat = formatMp3Radio.checked ? 'mp3' : 'mp4';
+  const selectedFormat = selectedFormatValue();
 
   // Persist URLs
   const haFrontendUrl = haFrontendInput.value.trim();
