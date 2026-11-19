@@ -138,3 +138,33 @@ def test_download_timeout():
 
         with pytest.raises(Exception, match="socket timeout"):
             download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ", timeout=1)
+
+
+def _download_with_fake_ydl(profile):
+    from app.yt_dlp_manager import download_video
+
+    instance = MagicMock()
+    instance.__enter__ = MagicMock(return_value=instance)
+    instance.__exit__ = MagicMock(return_value=False)
+    instance.extract_info.return_value = {"title": "Test"}
+
+    with patch("yt_dlp.YoutubeDL", return_value=instance):
+        download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ", profile=profile)
+    return instance
+
+
+def test_download_video_mp4_adds_faststart_postprocessor():
+    from app.postprocessors import FastStartPP
+    from app.profiles import MP4
+
+    ydl = _download_with_fake_ydl(MP4)
+
+    (pp,), kwargs = ydl.add_post_processor.call_args
+    assert isinstance(pp, FastStartPP)
+    assert kwargs == {"when": "after_move"}
+
+
+def test_download_video_mp3_has_no_faststart_postprocessor():
+    from app.profiles import MP3
+
+    assert not _download_with_fake_ydl(MP3).add_post_processor.called

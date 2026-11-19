@@ -9,7 +9,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - MP4 profile now selects H.264 + AAC so files play on DLNA TVs (AV1/VP9 in MP4 was rejected, e.g. Samsung Q80A, UPnP error 701). MP4 downloads drop from up to 4K to H.264, typically 1080p on YouTube; 4K is available via the Best Video profile.
-- MP4 files are written with the index at the start (`+faststart`).
+- Every MP4 file is written with the index at the start (`+faststart`), including progressive (non-merged) downloads.
+- MP4 falls back to the best MP4-compatible streams (possibly AV1/VP9) only when the source has no H.264 + AAC at all; the download still succeeds.
 - Sources without H.264 still download via the previous MP4-compatible fallback.
 
 ## [1.0.19] - 2026-09-04

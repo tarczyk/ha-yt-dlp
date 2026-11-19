@@ -1,6 +1,6 @@
 # Containers and codecs per Download Profile are chosen for DLNA playback from Home Assistant
 
-Downloads are played on TVs and streamers that Home Assistant drives over DLNA, and HA hides any file whose type the renderer does not advertise. So the container is chosen for what renders, not for what yt-dlp would pick by default: the MP4 profile is restricted to H.264 + AAC, Best Video is merged into WebM (AV1/VP9 + Opus, MP4 only when the source offers nothing but H.264), and MKV is never produced. Best Audio keeps the source stream untouched (`.opus`, or `.m4a` when the source only has AAC) instead of re-encoding to a more widely accepted format.
+Downloads are played on TVs and streamers that Home Assistant drives over DLNA, and HA hides any file whose type the renderer does not advertise. So the container is chosen for what renders, not for what yt-dlp would pick by default: the MP4 profile is restricted to H.264 + AAC (falling back to the best MP4-compatible streams, possibly AV1/VP9, only when the source offers no H.264 + AAC at all, so the download succeeds instead of failing), Best Video is merged into WebM (AV1/VP9 + Opus, MP4 only when the source offers nothing but H.264), and MKV is never produced. Best Audio keeps the source stream untouched (`.opus`, or `.m4a` when the source only has AAC) instead of re-encoding to a more widely accepted format.
 
 ## Considered Options
 
@@ -24,6 +24,6 @@ Measured on 2026-11-06 with a Samsung QE65Q80A (2021) and a WiiM Pro, both via H
 ## Consequences
 
 - MP4 downloads drop from up to 4K (AV1) to H.264, typically 1080p on YouTube. 4K now comes from Best Video.
-- MP4 files must have the index at the start (`+faststart`); clips without it were rejected by the Samsung even with H.264.
+- MP4 files must have the index at the start (`+faststart`); this is applied to every MP4 the profile produces, merged or progressive, by a post-processor after the file is moved into place; clips without it were rejected by the Samsung even with H.264.
 - Best Audio from a source that only offers AAC produces a `.m4a` that does not play on the WiiM through HA; the MP3 profile is the fallback.
 - The table reflects these two devices only. Revisit if a renderer with different capabilities becomes the main target.

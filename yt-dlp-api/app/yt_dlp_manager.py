@@ -8,6 +8,7 @@ from typing import Callable
 
 import yt_dlp
 
+from .postprocessors import FastStartPP
 from .profiles import DEFAULT_PROFILE, DownloadProfile, get_profile
 
 logger = logging.getLogger(__name__)
@@ -167,6 +168,8 @@ def download_video(
     ydl_opts = {**common_opts, **profile.yt_dlp_opts()}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        if profile.faststart:
+            ydl.add_post_processor(FastStartPP(ydl), when="after_move")
         info = ydl.extract_info(url, download=True)
     return info or {}
 

@@ -23,22 +23,24 @@ class DownloadProfile:
     yt_dlp_opts: Callable[[], dict]
     # Appended to the title, before the extension (e.g. " [best]"), so profiles never overwrite each other's files.
     filename_suffix: str = ""
+    # Rewrite the final MP4 with the index at the start (see ``FastStartPP``). Needed by DLNA TVs.
+    faststart: bool = False
 
 
 def _mp4_opts() -> dict:
     return {
         # H.264 + AAC first: AV1/VP9 in MP4 are rejected by DLNA TVs (see ADR 0001).
-        # The remaining branches are the previous selector, used only when the source has no H.264.
+        # Branches 1-2 cover every H.264 + AAC source (merged or progressive). Branches 3+ are the
+        # previous selector and are reached only when the source has no H.264 + AAC at all.
         "format": (
             "bestvideo[vcodec^=avc1][ext=mp4]+bestaudio[acodec^=mp4a][ext=m4a]"
+            "/best[vcodec^=avc1][acodec^=mp4a][ext=mp4]"
             "/bestvideo[ext=mp4]+bestaudio[ext=m4a]"
             "/bestvideo+bestaudio"
             "/best[ext=mp4]"
             "/best"
         ),
         "merge_output_format": "mp4",
-        # Put the MP4 index at the start of the file; TVs reject files without it.
-        "postprocessor_args": {"merger": ["-movflags", "+faststart"]},
     }
 
 
@@ -70,7 +72,7 @@ def _mp3_opts() -> dict:
     }
 
 
-MP4 = DownloadProfile(api_value="mp4", yt_dlp_opts=_mp4_opts)
+MP4 = DownloadProfile(api_value="mp4", yt_dlp_opts=_mp4_opts, faststart=True)
 MP3 = DownloadProfile(api_value="mp3", yt_dlp_opts=_mp3_opts)
 
 # Registered profiles keyed by API value.

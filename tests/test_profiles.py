@@ -1,4 +1,7 @@
 """Tests for Download Profile — single source of truth for format choices."""
+import shutil
+import subprocess
+
 import pytest
 
 from app.profiles import (
@@ -74,28 +77,9 @@ class TestProfileOpts:
         assert "mp4" in opts["format"]
         assert opts["merge_output_format"] == "mp4"
 
-    def test_mp4_format_selector_excludes_av1_and_vp9(self):
-        """Preferred branches require H.264 video + AAC audio; AV1/VP9 are never selected by name."""
-        selector = MP4.yt_dlp_opts()["format"]
-        first_choice = selector.split("/")[0]
-        assert "vcodec^=avc1" in first_choice
-        assert "acodec^=mp4a" in first_choice
-        assert "av01" not in selector
-        assert "vp9" not in selector
-        assert "vp09" not in selector
-
-    def test_mp4_format_selector_falls_back_to_mp4_compatible_streams(self):
-        """Sources without H.264 still download via the previous MP4-compatible fallbacks."""
-        branches = MP4.yt_dlp_opts()["format"].split("/")
-        assert "bestvideo[ext=mp4]+bestaudio[ext=m4a]" in branches
-        assert branches[-1] == "best"
-
-    def test_mp4_opts_request_faststart(self):
-        """MP4 index must be at the start of the file (TVs reject files without it)."""
-        opts = MP4.yt_dlp_opts()
-        ffmpeg_args = opts["postprocessor_args"]["merger"]
-        assert "-movflags" in ffmpeg_args
-        assert ffmpeg_args[ffmpeg_args.index("-movflags") + 1] == "+faststart"
+    def test_mp4_requests_faststart_for_every_mp4(self):
+        """Faststart is a profile property applied by a post-processor, so progressive downloads get it too."""
+        assert MP4.faststart is True
 
     def test_mp3_opts_postprocessors(self):
         opts = MP3.yt_dlp_opts()
@@ -253,3 +237,106 @@ class TestBestVideo:
                 ydl.return_value.__enter__.return_value = MagicMock(extract_info=MagicMock(return_value={}))
                 download_video("https://x", output_dir="/d", profile=profile)
             assert ydl.call_args[0][0]["outtmpl"] == expected
+
+
+# ---------------------------------------------------------------------------
+# MP4 format selection — run through yt-dlp's real selector
+# ---------------------------------------------------------------------------
+
+def _fmt(format_id, ext, vcodec, acodec, height=0):
+    return {
+        "format_id": format_id, "ext": ext, "vcodec": vcodec, "acodec": acodec,
+        "height": height, "url": "https://example.invalid/" + format_id, "protocol": "https",
+    }
+
+
+def _select_mp4(formats):
+    """Format ids yt-dlp would download for the MP4 profile (formats ordered worst → best)."""
+    import yt_dlp
+
+    ydl = yt_dlp.YoutubeDL({"quiet": True})
+    selector = ydl.build_format_selector(MP4.yt_dlp_opts()["format"])
+    chosen = list(selector({"formats": formats, "incomplete_formats": False}))
+    assert len(chosen) == 1
+    return [f["format_id"] for f in chosen[0].get("requested_formats", [chosen[0]])]
+
+
+_OPUS = _fmt("a_opus", "webm", "none", "opus")
+_AAC = _fmt("a_aac", "m4a", "none", "mp4a.40.2")
+_H264 = _fmt("v_h264", "mp4", "avc1.640028", "none", 1080)
+_VP9 = _fmt("v_vp9", "webm", "vp09.00.50.08", "none", 2160)
+_AV1 = _fmt("v_av1", "mp4", "av01.0.12M.08", "none", 2160)
+
+
+class TestMp4FormatSelection:
+    def test_h264_aac_wins_when_av1_and_vp9_are_offered(self):
+        assert _select_mp4([_OPUS, _AAC, _H264, _VP9, _AV1]) == ["v_h264", "a_aac"]
+
+    def test_h264_aac_wins_regardless_of_format_order(self):
+        assert _select_mp4([_AV1, _VP9, _H264, _AAC, _OPUS]) == ["v_h264", "a_aac"]
+
+    def test_progressive_h264_aac_wins_over_av1_when_streams_cannot_be_merged(self):
+        progressive = _fmt("p_h264", "mp4", "avc1.42001E", "mp4a.40.2", 360)
+        assert _select_mp4([_OPUS, progressive, _AV1]) == ["p_h264"]
+
+    def test_fallback_used_when_source_has_no_h264(self):
+        # No H.264 anywhere: best MP4-compatible streams (AV1 in MP4 + AAC) rather than failure.
+        assert _select_mp4([_OPUS, _AAC, _VP9, _AV1]) == ["v_av1", "a_aac"]
+
+    def test_fallback_still_downloads_when_nothing_is_mp4_compatible(self):
+        assert _select_mp4([_OPUS, _VP9]) == ["v_vp9", "a_opus"]
+
+
+# ---------------------------------------------------------------------------
+# Faststart post-processor
+# ---------------------------------------------------------------------------
+
+def _first_atoms(path):
+    """Top-level MP4 atom names in file order."""
+    atoms = []
+    with open(path, "rb") as fh:
+        while True:
+            header = fh.read(8)
+            if len(header) < 8:
+                return atoms
+            size = int.from_bytes(header[:4], "big")
+            atoms.append(header[4:8].decode("latin-1"))
+            if size == 1:
+                size = int.from_bytes(fh.read(8), "big")
+                fh.seek(size - 16, 1)
+            else:
+                fh.seek(size - 8, 1)
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
+class TestFaststartPostProcessor:
+    def _make_mp4(self, path, faststart):
+        flags = ["-movflags", "+faststart"] if faststart else []
+        subprocess.run(
+            ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=d=1:s=64x64:r=10",
+             "-c:v", "libx264", *flags, str(path)],
+            check=True,
+        )
+
+    def test_moves_index_to_start_of_progressive_mp4(self, tmp_path):
+        import yt_dlp
+        from app.postprocessors import FastStartPP
+
+        path = tmp_path / "clip.mp4"
+        self._make_mp4(path, faststart=False)
+        assert _first_atoms(path).index("moov") > _first_atoms(path).index("mdat")
+
+        FastStartPP(yt_dlp.YoutubeDL({"quiet": True})).run({"filepath": str(path)})
+
+        assert _first_atoms(path).index("moov") < _first_atoms(path).index("mdat")
+
+    def test_leaves_non_mp4_untouched(self, tmp_path):
+        import yt_dlp
+        from app.postprocessors import FastStartPP
+
+        path = tmp_path / "clip.webm"
+        path.write_bytes(b"not a real webm")
+
+        FastStartPP(yt_dlp.YoutubeDL({"quiet": True})).run({"filepath": str(path)})
+
+        assert path.read_bytes() == b"not a real webm"
