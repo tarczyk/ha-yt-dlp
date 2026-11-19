@@ -539,19 +539,31 @@ def test_download_video_mp4_format(client):
     assert task["format"] == "mp4"
 
 
-def test_download_video_invalid_format_defaults_to_mp4(client):
-    with patch("app.api._run_download"):
+def test_download_video_invalid_format_returns_400(client):
+    from app.profiles import ALLOWED_VALUES
+    response = client.post(
+        "/download_video",
+        json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "format": "avi"},
+    )
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "error" in data
+    assert "avi" in data["error"]
+    assert "allowed" in data["error"].lower()
+    assert data.get("allowed") == ALLOWED_VALUES
+
+
+def test_download_video_non_string_format_returns_400(client):
+    from app.profiles import ALLOWED_VALUES
+    for invalid in (["mp4"], {"format": "mp4"}, 123):
         response = client.post(
             "/download_video",
-            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "format": "avi"},
+            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "format": invalid},
         )
-    assert response.status_code == 202
-    data = response.get_json()
-    task_id = data["task_id"]
-    import app.api as api_module
-    with api_module._tasks_lock:
-        task = api_module._tasks.get(task_id)
-    assert task["format"] == "mp4"
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "error" in data
+        assert data.get("allowed") == ALLOWED_VALUES
 
 
 def test_task_cancel(client):

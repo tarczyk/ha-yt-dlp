@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request, send_file
 
+from .profiles import ALLOWED_VALUES, DEFAULT_PROFILE, DownloadProfile, get_profile
 from .updater import Updater
 from .yt_dlp_manager import (
     DownloadCancelledError,
@@ -72,7 +73,13 @@ MIME_TYPES = {
 }
 
 
-def _run_download(task_id: str, url: str, format_type: str = "mp4") -> None:
+def _run_download(task_id: str, url: str, profile: DownloadProfile | str = DEFAULT_PROFILE) -> None:
+    if isinstance(profile, str):
+        matched = get_profile(profile)
+        if matched is None:
+            raise ValueError(f"Unknown download profile: {profile}")
+        profile = matched
+
     def stop_check() -> bool:
         with _tasks_lock:
             return _tasks.get(task_id, {}).get("cancelled") is True
@@ -81,12 +88,9 @@ def _run_download(task_id: str, url: str, format_type: str = "mp4") -> None:
         with _tasks_lock:
             _tasks[task_id]["status"] = TASK_STATUS_DOWNLOADING
         try:
-            formats = ["mp4", "mp3"] if format_type == "both" else [format_type]
-            info = {}
-            for fmt in formats:
-                if stop_check():
-                    raise DownloadCancelledError("Cancelled by user")
-                info = download_video(url, output_dir=DOWNLOAD_DIR, stop_check=stop_check, format_type=fmt)
+            if stop_check():
+                raise DownloadCancelledError("Cancelled by user")
+            info = download_video(url, output_dir=DOWNLOAD_DIR, stop_check=stop_check, profile=profile)
             with _tasks_lock:
                 _tasks[task_id]["status"] = TASK_STATUS_COMPLETED
                 _tasks[task_id]["title"] = info.get("title", "")
@@ -103,7 +107,7 @@ def _run_download(task_id: str, url: str, format_type: str = "mp4") -> None:
                         _tasks[task_id]["status"] = "cancelled"
                         _tasks[task_id]["error"] = "Cancelled by user"
                 else:
-                    _trigger_adhoc_update_and_retry(task_id, url, format_type, error_str, stop_check)
+                    _trigger_adhoc_update_and_retry(task_id, url, profile, error_str, stop_check)
             else:
                 with _tasks_lock:
                     _tasks[task_id]["status"] = TASK_STATUS_FAILED
@@ -114,7 +118,7 @@ def _run_download(task_id: str, url: str, format_type: str = "mp4") -> None:
 
 
 def _trigger_adhoc_update_and_retry(
-    task_id: str, url: str, format_type: str, original_error: str, stop_check
+    task_id: str, url: str, profile: DownloadProfile, original_error: str, stop_check
 ) -> None:
     """Called when download fails with a recognized error signal."""
     with _tasks_lock:
@@ -137,10 +141,7 @@ def _trigger_adhoc_update_and_retry(
 
     # Update succeeded — retry the download
     try:
-        formats = ["mp4", "mp3"] if format_type == "both" else [format_type]
-        info = {}
-        for fmt in formats:
-            info = download_video(url, output_dir=DOWNLOAD_DIR, format_type=fmt, stop_check=stop_check)
+        info = download_video(url, output_dir=DOWNLOAD_DIR, profile=profile, stop_check=stop_check)
         with _tasks_lock:
             _tasks[task_id]["status"] = TASK_STATUS_COMPLETED
             _tasks[task_id]["title"] = info.get("title", "")
@@ -215,9 +216,19 @@ def config():
 def download_video_endpoint():
     data = request.get_json(silent=True) or {}
     url = data.get("url", "")
-    format_type = data.get("format", "mp4")
-    if format_type not in ("mp4", "mp3"):
-        format_type = "mp4"
+    raw_format = data.get("format")
+    if raw_format is not None and not isinstance(raw_format, str):
+        return jsonify({
+            "error": f"unknown format '{raw_format}', allowed values: {', '.join(ALLOWED_VALUES)}",
+            "allowed": ALLOWED_VALUES,
+        }), 400
+    profile = get_profile(raw_format)
+    if profile is None:
+        return jsonify({
+            "error": f"unknown format '{raw_format}', allowed values: {', '.join(ALLOWED_VALUES)}",
+            "allowed": ALLOWED_VALUES,
+        }), 400
+    format_type = profile.api_value
     if not _is_valid_url(url):
         return jsonify({"error": "invalid url"}), 400
     if _is_playlist_url(url):
@@ -227,7 +238,7 @@ def download_video_endpoint():
     task_id = str(uuid.uuid4())
     with _tasks_lock:
         _tasks[task_id] = {"task_id": task_id, "status": "queued", "url": url, "cancelled": False, "format": format_type}
-    thread = threading.Thread(target=_run_download, args=(task_id, url, format_type), daemon=True)
+    thread = threading.Thread(target=_run_download, args=(task_id, url, profile), daemon=True)
     thread.start()
     response: dict = {"status": "processing", "task_id": task_id}
     version_info = check_ytdlp_version()
