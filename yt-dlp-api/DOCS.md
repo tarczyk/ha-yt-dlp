@@ -18,6 +18,7 @@ This add-on runs the **yt-dlp REST API** inside Home Assistant OS, enabling you 
 | `port` | `5000` | TCP port the Flask API listens on inside the container |
 | `media_subdir` | `youtube_downloads` | Subfolder under HA `/media` where downloads are saved (e.g. `youtube_downloads`, `videos`, `downloads`) |
 | `cookies_file` | `youtube_cookies.txt` | Optional filename under HA `/config` with Netscape cookies for YouTube. Leave empty to disable. |
+| `max_video_height` | *(empty)* | Optional maximum video height in pixels for the MP4 and Best video profiles, e.g. `1080`, `1440` or `2160`. Leave empty for no limit. MP3 and Best audio ignore it. |
 
 Example:
 
@@ -25,7 +26,10 @@ Example:
 port: 5000
 media_subdir: youtube_downloads
 cookies_file: youtube_cookies.txt
+max_video_height: 2160
 ```
+
+**`max_video_height`:** set it to the highest resolution your TV can decode, so you never download files it can't play. With `2160` (4K TV), Best video on an 8K source downloads at most 2160p; with `1080` (Full HD TV), MP4 and Best video stop at 1080p. The option is hidden under **Show unused optional configuration options** in the add-on's Configuration tab until you set it. If a source offers nothing at or below the limit, the download fails with "Requested format is not available" rather than exceeding it.
 
 To save videos to a different folder in **Media Browser** (e.g. **My media → videos**), set `media_subdir: videos`. Only letters, numbers, underscores, hyphens and dots are allowed.
 

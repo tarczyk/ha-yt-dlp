@@ -254,12 +254,12 @@ def _fmt(format_id, ext, vcodec, acodec, height=0):
     }
 
 
-def _select_mp4(formats):
+def _select_mp4(formats, max_height=None):
     """Format ids yt-dlp would download for the MP4 profile (formats ordered worst → best)."""
     import yt_dlp
 
     ydl = yt_dlp.YoutubeDL({"quiet": True})
-    selector = ydl.build_format_selector(MP4.yt_dlp_opts()["format"])
+    selector = ydl.build_format_selector(MP4.yt_dlp_opts(max_height=max_height)["format"])
     chosen = list(selector({"formats": formats, "incomplete_formats": False}))
     assert len(chosen) == 1
     return [f["format_id"] for f in chosen[0].get("requested_formats", [chosen[0]])]
@@ -291,11 +291,11 @@ class TestMp4FormatSelection:
         assert _select_mp4([_OPUS, _VP9]) == ["v_vp9", "a_opus"]
 
 
-def _select_best(formats):
+def _select_best(formats, max_height=None):
     """(format ids, output ext) yt-dlp would produce for the Best Video profile."""
     import yt_dlp
 
-    opts = BEST_VIDEO.yt_dlp_opts()
+    opts = BEST_VIDEO.yt_dlp_opts(max_height=max_height)
     ydl = yt_dlp.YoutubeDL({"quiet": True, "merge_output_format": opts["merge_output_format"]})
     chosen = list(ydl.build_format_selector(opts["format"])({"formats": formats, "incomplete_formats": False}))
     assert len(chosen) == 1
@@ -335,8 +335,87 @@ class TestBestVideoFormatSelection:
         assert ext != "mkv"
 
 
-# ---------------------------------------------------------------------------
-# Faststart post-processor
+_AV1_8K = _fmt("v_av1_8k", "mp4", "av01.0.17M.08", "none", 4320)
+_VP9_4K = _fmt("v_vp9_4k", "webm", "vp09.00.51.08", "none", 2160)
+
+
+class TestBestVideoMaxHeight:
+    def test_8k_is_downloaded_without_a_limit(self):
+        assert _select_best([_OPUS, _VP9_4K, _AV1_8K]) == (["v_av1_8k", "a_opus"], "webm")
+
+    def test_limit_caps_8k_source_at_2160p(self):
+        assert _select_best([_OPUS, _VP9_4K, _AV1_8K], max_height=2160) == (["v_vp9_4k", "a_opus"], "webm")
+
+    def test_limit_applies_to_h264_fallback(self):
+        h264_1440 = _fmt("v_h264_1440", "mp4", "avc1.640032", "none", 1440)
+        assert _select_best([_AAC, _H264, h264_1440], max_height=1080) == (["v_h264", "a_aac"], "mp4")
+
+    def test_limit_applies_to_progressive_fallback(self):
+        p_720 = _fmt("p_720", "mp4", "avc1.64001F", "mp4a.40.2", 720)
+        p_1080 = _fmt("p_1080", "mp4", "avc1.640028", "mp4a.40.2", 1080)
+        assert _select_best([p_720, p_1080], max_height=720) == (["p_720"], "mp4")
+
+    def test_nothing_within_limit_selects_nothing_rather_than_exceeding_it(self):
+        import yt_dlp
+
+        selector = yt_dlp.YoutubeDL({"quiet": True}).build_format_selector(
+            BEST_VIDEO.yt_dlp_opts(max_height=2160)["format"],
+        )
+        assert list(selector({"formats": [_OPUS, _AV1_8K], "incomplete_formats": False})) == []
+
+
+class TestMp4MaxHeight:
+    _H264_1440 = _fmt("v_h264_1440", "mp4", "avc1.640032", "none", 1440)
+
+    def test_highest_h264_is_downloaded_without_a_limit(self):
+        assert _select_mp4([_AAC, _H264, self._H264_1440]) == ["v_h264_1440", "a_aac"]
+
+    def test_limit_caps_h264_resolution(self):
+        assert _select_mp4([_AAC, _H264, self._H264_1440], max_height=1080) == ["v_h264", "a_aac"]
+
+    def test_limit_applies_to_fallback_without_h264(self):
+        av1_1080 = _fmt("v_av1_1080", "mp4", "av01.0.08M.08", "none", 1080)
+        assert _select_mp4([_AAC, av1_1080, _AV1], max_height=1080) == ["v_av1_1080", "a_aac"]
+
+
+class TestAudioProfilesIgnoreMaxHeight:
+    @pytest.mark.parametrize("api_value", ["mp3", "best_audio"])
+    def test_opts_unchanged_by_limit(self, api_value):
+        profile = get_profile(api_value)
+        assert profile.yt_dlp_opts(max_height=720) == profile.yt_dlp_opts()
+
+
+class TestDownloadVideoMaxHeight:
+    """``download_video`` reads the add-on option from MAX_VIDEO_HEIGHT (exported by run.sh)."""
+
+    @staticmethod
+    def _format_for(profile, monkeypatch, env_value):
+        from unittest.mock import MagicMock, patch
+
+        from app.yt_dlp_manager import download_video
+
+        if env_value is None:
+            monkeypatch.delenv("MAX_VIDEO_HEIGHT", raising=False)
+        else:
+            monkeypatch.setenv("MAX_VIDEO_HEIGHT", env_value)
+        with patch("app.yt_dlp_manager.yt_dlp.YoutubeDL") as ydl:
+            ydl.return_value.__enter__.return_value = MagicMock(extract_info=MagicMock(return_value={}))
+            download_video("https://x", output_dir="/d", profile=profile)
+        return ydl.call_args[0][0]["format"]
+
+    @pytest.mark.parametrize("api_value", ["mp4", "best_video"])
+    def test_video_profiles_capped_when_set(self, api_value, monkeypatch):
+        fmt = self._format_for(get_profile(api_value), monkeypatch, "2160")
+        assert fmt == get_profile(api_value).yt_dlp_opts(max_height=2160)["format"]
+        assert fmt != get_profile(api_value).yt_dlp_opts()["format"]
+
+    @pytest.mark.parametrize("api_value", ["mp4", "best_video", "mp3", "best_audio"])
+    def test_unchanged_when_unset(self, api_value, monkeypatch):
+        assert self._format_for(get_profile(api_value), monkeypatch, None) == get_profile(api_value).yt_dlp_opts()["format"]
+
+    @pytest.mark.parametrize("env_value", ["", "  ", "abc", "0", "-1", "1080.5"])
+    def test_invalid_value_is_ignored(self, env_value, monkeypatch):
+        assert self._format_for(BEST_VIDEO, monkeypatch, env_value) == BEST_VIDEO.yt_dlp_opts()["format"]
 # ---------------------------------------------------------------------------
 
 def _first_atoms(path):
