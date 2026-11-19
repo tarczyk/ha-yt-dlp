@@ -73,8 +73,12 @@ jobs:
             echo
             echo "## Inline comments"
             echo
-            gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/reviews/${REVIEW_ID}/comments" --paginate \
-              --jq '.[] | "### " + .path + ":" + ((.line // .original_line) | tostring) + "\n\n" + .body + "\n"'
+            # All inline comments since the last commit, so a follow-up review
+            # ("address the comments above") still carries the earlier ones.
+            since=$(TZ=UTC git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd)
+            gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/comments" --paginate \
+              --jq ".[] | select(.created_at > \"${since}\" or .pull_request_review_id == ${REVIEW_ID})
+                    | \"### \" + .path + \":\" + ((.line // .original_line) | tostring) + \"\n\n\" + .body + \"\n\""
           } > .agent-review.md
 
       # Uses the agy session cached on the runner (interactive login once).
