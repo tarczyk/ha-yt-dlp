@@ -42,6 +42,17 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "zip_path=chrome-ext/ha-yt-dlp-chrome-ext-${VERSION}.zip" >> $GITHUB_OUTPUT
 
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${{ steps.build.outputs.version }}"
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" {f=1; next}
+            f && /^## \[/ {exit}
+            f {print}
+          ' CHANGELOG.md > release-notes.md
+          if [ -s release-notes.md ]; then echo "has_notes=true" >> $GITHUB_OUTPUT; fi
+
       - name: Create Release and upload assets
         uses: softprops/action-gh-release@v2
         with:
@@ -49,6 +60,7 @@ jobs:
           files: |
             ${{ steps.build.outputs.zip_path }}
             ha-yt-dlp.js
-          generate_release_notes: true
+          body_path: ${{ steps.notes.outputs.has_notes == 'true' && 'release-notes.md' || '' }}
+          generate_release_notes: ${{ steps.notes.outputs.has_notes != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
