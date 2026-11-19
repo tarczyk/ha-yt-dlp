@@ -26,7 +26,8 @@ def test_ytdlp_remote_components():
 
 
 def test_download_video_mp3_uses_audio_format():
-    """Verify that format_type='mp3' sets bestaudio format and FFmpegExtractAudio postprocessor."""
+    """Verify that MP3 profile sets bestaudio format and FFmpegExtractAudio postprocessor."""
+    from app.profiles import MP3
     from app.yt_dlp_manager import download_video
 
     captured_opts = {}
@@ -40,14 +41,15 @@ def test_download_video_mp3_uses_audio_format():
         return instance
 
     with patch("yt_dlp.YoutubeDL", side_effect=fake_ydl_class):
-        download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ", format_type="mp3")
+        download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ", profile=MP3)
 
     assert captured_opts["format"] == "bestaudio/best"
     assert any(p["key"] == "FFmpegExtractAudio" for p in captured_opts.get("postprocessors", []))
 
 
 def test_download_video_mp4_uses_video_format():
-    """Verify that format_type='mp4' sets the bestvideo+bestaudio format string."""
+    """Verify that MP4 profile sets the bestvideo+bestaudio format string."""
+    from app.profiles import MP4
     from app.yt_dlp_manager import download_video
 
     captured_opts = {}
@@ -61,10 +63,21 @@ def test_download_video_mp4_uses_video_format():
         return instance
 
     with patch("yt_dlp.YoutubeDL", side_effect=fake_ydl_class):
-        download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ", format_type="mp4")
+        download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ", profile=MP4)
 
     assert "mp4" in captured_opts["format"]
     assert captured_opts.get("merge_output_format") == "mp4"
+
+
+def test_download_video_unknown_profile_raises_value_error():
+    """Verify that an unknown profile or format_type raises ValueError instead of silent fallback."""
+    from app.yt_dlp_manager import download_video
+
+    with pytest.raises(ValueError, match="Unknown download profile: invalid"):
+        download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ", profile="invalid")
+
+    with pytest.raises(ValueError, match="Unknown download profile: unknown"):
+        download_video("https://www.youtube.com/watch?v=dQw4w9WgXcQ", format_type="unknown")
 
 
 def test_download_video_uses_cookies_file_when_present(tmp_path, monkeypatch):
