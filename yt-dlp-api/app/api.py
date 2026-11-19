@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request, send_file
 
+from .profiles import ALLOWED_VALUES, get_profile
 from .updater import Updater
 from .yt_dlp_manager import (
     DownloadCancelledError,
@@ -81,12 +82,9 @@ def _run_download(task_id: str, url: str, format_type: str = "mp4") -> None:
         with _tasks_lock:
             _tasks[task_id]["status"] = TASK_STATUS_DOWNLOADING
         try:
-            formats = ["mp4", "mp3"] if format_type == "both" else [format_type]
-            info = {}
-            for fmt in formats:
-                if stop_check():
-                    raise DownloadCancelledError("Cancelled by user")
-                info = download_video(url, output_dir=DOWNLOAD_DIR, stop_check=stop_check, format_type=fmt)
+            if stop_check():
+                raise DownloadCancelledError("Cancelled by user")
+            info = download_video(url, output_dir=DOWNLOAD_DIR, stop_check=stop_check, format_type=format_type)
             with _tasks_lock:
                 _tasks[task_id]["status"] = TASK_STATUS_COMPLETED
                 _tasks[task_id]["title"] = info.get("title", "")
@@ -137,10 +135,7 @@ def _trigger_adhoc_update_and_retry(
 
     # Update succeeded — retry the download
     try:
-        formats = ["mp4", "mp3"] if format_type == "both" else [format_type]
-        info = {}
-        for fmt in formats:
-            info = download_video(url, output_dir=DOWNLOAD_DIR, format_type=fmt, stop_check=stop_check)
+        info = download_video(url, output_dir=DOWNLOAD_DIR, format_type=format_type, stop_check=stop_check)
         with _tasks_lock:
             _tasks[task_id]["status"] = TASK_STATUS_COMPLETED
             _tasks[task_id]["title"] = info.get("title", "")
@@ -215,9 +210,13 @@ def config():
 def download_video_endpoint():
     data = request.get_json(silent=True) or {}
     url = data.get("url", "")
-    format_type = data.get("format", "mp4")
-    if format_type not in ("mp4", "mp3"):
-        format_type = "mp4"
+    raw_format = data.get("format")
+    profile = get_profile(raw_format)
+    if profile is None:
+        return jsonify({
+            "error": f"unknown format '{raw_format}', allowed values: {ALLOWED_VALUES}",
+        }), 400
+    format_type = profile.api_value
     if not _is_valid_url(url):
         return jsonify({"error": "invalid url"}), 400
     if _is_playlist_url(url):

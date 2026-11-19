@@ -106,6 +106,9 @@ def _yt_dlp_logger():
     return log
 
 
+from .profiles import get_profile, DEFAULT_PROFILE
+
+
 def download_video(
     url: str,
     output_dir: str = "/config/media",
@@ -120,6 +123,8 @@ def download_video(
     def progress_hook(d: dict) -> None:
         if stop_check and stop_check():
             raise DownloadCancelledError("Cancelled by user")
+
+    profile = get_profile(format_type) or DEFAULT_PROFILE
 
     common_opts = {
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
@@ -150,25 +155,7 @@ def download_video(
     if cookies_path:
         common_opts["cookiefile"] = cookies_path
 
-    if format_type == "mp3":
-        ydl_opts = {
-            **common_opts,
-            # Download best audio and convert to MP3.
-            "format": "bestaudio/best",
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }],
-        }
-    else:
-        ydl_opts = {
-            **common_opts,
-            # Prefer MP4 for better compatibility (HA Media Browser, TVs, phones).
-            # Without this, yt-dlp defaults to "best" and YouTube often serves WebM (VP9).
-            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best",
-            "merge_output_format": "mp4",
-        }
+    ydl_opts = {**common_opts, **profile.yt_dlp_opts()}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
