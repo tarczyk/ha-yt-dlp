@@ -7,7 +7,7 @@ on:
     types: [labeled]
 
 concurrency:
-  group: gemini-implement-${{ github.event.issue.number }}
+  group: agent-gemini/issue-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
