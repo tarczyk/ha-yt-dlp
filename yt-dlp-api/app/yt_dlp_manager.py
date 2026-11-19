@@ -8,6 +8,8 @@ from typing import Callable
 
 import yt_dlp
 
+from .profiles import DEFAULT_PROFILE, DownloadProfile, get_profile
+
 logger = logging.getLogger(__name__)
 
 # Task status constants — single source of truth; never use inline strings in new code paths
@@ -106,25 +108,32 @@ def _yt_dlp_logger():
     return log
 
 
-from .profiles import get_profile, DEFAULT_PROFILE
-
-
 def download_video(
     url: str,
     output_dir: str = "/config/media",
     timeout: int = 1800,
     stop_check: Callable[[], bool] | None = None,
-    format_type: str = "mp4",
+    profile: DownloadProfile | str = DEFAULT_PROFILE,
+    format_type: str | None = None,
 ) -> dict:
     """Download a video using yt-dlp and return info dict.
     If stop_check is provided and returns True during download, raises DownloadCancelledError.
-    format_type: 'mp4' for video (default) or 'mp3' for audio-only.
+    profile: DownloadProfile instance (default: DEFAULT_PROFILE / mp4).
     """
     def progress_hook(d: dict) -> None:
         if stop_check and stop_check():
             raise DownloadCancelledError("Cancelled by user")
 
-    profile = get_profile(format_type) or DEFAULT_PROFILE
+    if format_type is not None:
+        resolved = get_profile(format_type)
+        if resolved is None:
+            raise ValueError(f"Unknown download profile: {format_type}")
+        profile = resolved
+    elif isinstance(profile, str):
+        resolved = get_profile(profile)
+        if resolved is None:
+            raise ValueError(f"Unknown download profile: {profile}")
+        profile = resolved
 
     common_opts = {
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",

@@ -56,6 +56,12 @@ class TestGetProfile:
         assert get_profile("both") is None
         assert get_profile("") is None
 
+    def test_non_string_returns_none(self):
+        assert get_profile(["mp4"]) is None
+        assert get_profile({"format": "mp4"}) is None
+        assert get_profile(123) is None
+        assert get_profile(True) is None
+
 
 # ---------------------------------------------------------------------------
 # Profile yt-dlp opts
@@ -75,12 +81,6 @@ class TestProfileOpts:
             pp.get("preferredcodec") == "mp3"
             for pp in opts.get("postprocessors", [])
         )
-
-    def test_mp4_suffix(self):
-        assert MP4.suffix == "mp4"
-
-    def test_mp3_suffix(self):
-        assert MP3.suffix == "mp3"
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +111,7 @@ class TestEndpointFormatValidation:
         data = resp.get_json()
         assert "error" in data
         assert "flv" in data["error"]
+        assert data.get("allowed") == ALLOWED_VALUES
         # Error message must list allowed values
         for val in ALLOWED_VALUES:
             assert val in data["error"]
@@ -124,6 +125,7 @@ class TestEndpointFormatValidation:
         assert resp.status_code == 400
         data = resp.get_json()
         assert "both" in data["error"]
+        assert data.get("allowed") == ALLOWED_VALUES
 
     def test_empty_string_format_returns_400(self, client):
         resp = client.post(
@@ -131,6 +133,20 @@ class TestEndpointFormatValidation:
             json={"url": "https://youtube.com/watch?v=abc", "format": ""},
         )
         assert resp.status_code == 400
+        data = resp.get_json()
+        assert data.get("allowed") == ALLOWED_VALUES
+
+    def test_non_string_format_returns_400(self, client):
+        """Non-string format types (list, dict, int) return 400 with allowed values."""
+        for invalid_format in (["mp4"], {"type": "mp4"}, 123, True):
+            resp = client.post(
+                "/download_video",
+                json={"url": "https://youtube.com/watch?v=abc", "format": invalid_format},
+            )
+            assert resp.status_code == 400
+            data = resp.get_json()
+            assert "error" in data
+            assert data.get("allowed") == ALLOWED_VALUES
 
     def test_omitted_format_defaults_to_mp4(self, client):
         """Omitting 'format' still means mp4."""

@@ -3,7 +3,6 @@
 Each profile defines:
 - ``api_value``: the string accepted in the ``format`` request field
 - ``yt_dlp_opts``: a callable returning the yt-dlp option dict fragment
-- ``suffix``: the filename extension produced by the download
 
 Every caller asks the profile instead of comparing format strings.
 """
@@ -19,9 +18,8 @@ class DownloadProfile:
     """One download profile (e.g. mp4, mp3)."""
 
     api_value: str
-    suffix: str
     # Returns yt-dlp option keys that differ between profiles.
-    # Kept as a callable so heavyweight imports stay lazy.
+    # Kept as a callable so each invocation gets an isolated options dict without shared mutable state.
     yt_dlp_opts: Callable[[], dict]
 
 
@@ -45,8 +43,8 @@ def _mp3_opts() -> dict:
     }
 
 
-MP4 = DownloadProfile(api_value="mp4", suffix="mp4", yt_dlp_opts=_mp4_opts)
-MP3 = DownloadProfile(api_value="mp3", suffix="mp3", yt_dlp_opts=_mp3_opts)
+MP4 = DownloadProfile(api_value="mp4", yt_dlp_opts=_mp4_opts)
+MP3 = DownloadProfile(api_value="mp3", yt_dlp_opts=_mp3_opts)
 
 # Registered profiles keyed by API value.
 PROFILES: dict[str, DownloadProfile] = {p.api_value: p for p in (MP4, MP3)}
@@ -65,4 +63,6 @@ def get_profile(api_value: str | None) -> DownloadProfile | None:
     """
     if api_value is None:
         return DEFAULT_PROFILE
+    if not isinstance(api_value, str):
+        return None
     return PROFILES.get(api_value)
