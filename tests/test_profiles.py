@@ -74,6 +74,29 @@ class TestProfileOpts:
         assert "mp4" in opts["format"]
         assert opts["merge_output_format"] == "mp4"
 
+    def test_mp4_format_selector_excludes_av1_and_vp9(self):
+        """Preferred branches require H.264 video + AAC audio; AV1/VP9 are never selected by name."""
+        selector = MP4.yt_dlp_opts()["format"]
+        first_choice = selector.split("/")[0]
+        assert "vcodec^=avc1" in first_choice
+        assert "acodec^=mp4a" in first_choice
+        assert "av01" not in selector
+        assert "vp9" not in selector
+        assert "vp09" not in selector
+
+    def test_mp4_format_selector_falls_back_to_mp4_compatible_streams(self):
+        """Sources without H.264 still download via the previous MP4-compatible fallbacks."""
+        branches = MP4.yt_dlp_opts()["format"].split("/")
+        assert "bestvideo[ext=mp4]+bestaudio[ext=m4a]" in branches
+        assert branches[-1] == "best"
+
+    def test_mp4_opts_request_faststart(self):
+        """MP4 index must be at the start of the file (TVs reject files without it)."""
+        opts = MP4.yt_dlp_opts()
+        ffmpeg_args = opts["postprocessor_args"]["merger"]
+        assert "-movflags" in ffmpeg_args
+        assert ffmpeg_args[ffmpeg_args.index("-movflags") + 1] == "+faststart"
+
     def test_mp3_opts_postprocessors(self):
         opts = MP3.yt_dlp_opts()
         assert opts["format"] == "bestaudio/best"

@@ -25,9 +25,18 @@ class DownloadProfile:
 
 def _mp4_opts() -> dict:
     return {
-        # Prefer MP4 for better compatibility (HA Media Browser, TVs, phones).
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best",
+        # H.264 + AAC first: AV1/VP9 in MP4 are rejected by DLNA TVs (see ADR 0001).
+        # The remaining branches are the previous selector, used only when the source has no H.264.
+        "format": (
+            "bestvideo[vcodec^=avc1][ext=mp4]+bestaudio[acodec^=mp4a][ext=m4a]"
+            "/bestvideo[ext=mp4]+bestaudio[ext=m4a]"
+            "/bestvideo+bestaudio"
+            "/best[ext=mp4]"
+            "/best"
+        ),
         "merge_output_format": "mp4",
+        # Put the MP4 index at the start of the file; TVs reject files without it.
+        "postprocessor_args": {"merger": ["-movflags", "+faststart"]},
     }
 
 
