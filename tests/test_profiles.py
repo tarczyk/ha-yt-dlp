@@ -7,6 +7,7 @@ import pytest
 from app.profiles import (
     ALLOWED_VALUES,
     DEFAULT_PROFILE,
+    BEST_VIDEO,
     PROFILES,
     DownloadProfile,
     get_profile,
@@ -215,9 +216,12 @@ class TestBestVideo:
     def test_container_is_webm_then_mp4_never_mkv(self):
         from app.profiles import BEST_VIDEO
 
-        opts = BEST_VIDEO.yt_dlp_opts()
-        assert opts["merge_output_format"] == "webm/mp4"
-        assert "mkv" not in str(opts)
+        assert BEST_VIDEO.yt_dlp_opts()["merge_output_format"] == "webm/mp4"
+
+    def test_requests_faststart_for_mp4_output(self):
+        from app.profiles import BEST_VIDEO
+
+        assert BEST_VIDEO.faststart is True
 
     def test_filename_suffix_distinguishes_from_mp4(self):
         from app.profiles import BEST_VIDEO, MP3, MP4
@@ -285,6 +289,50 @@ class TestMp4FormatSelection:
 
     def test_fallback_still_downloads_when_nothing_is_mp4_compatible(self):
         assert _select_mp4([_OPUS, _VP9]) == ["v_vp9", "a_opus"]
+
+
+def _select_best(formats):
+    """(format ids, output ext) yt-dlp would produce for the Best Video profile."""
+    import yt_dlp
+
+    opts = BEST_VIDEO.yt_dlp_opts()
+    ydl = yt_dlp.YoutubeDL({"quiet": True, "merge_output_format": opts["merge_output_format"]})
+    chosen = list(ydl.build_format_selector(opts["format"])({"formats": formats, "incomplete_formats": False}))
+    assert len(chosen) == 1
+    ids = [f["format_id"] for f in chosen[0].get("requested_formats", [chosen[0]])]
+    return ids, chosen[0]["ext"]
+
+
+class TestBestVideoFormatSelection:
+    def test_av1_and_opus_merge_into_webm(self):
+        assert _select_best([_OPUS, _AAC, _H264, _AV1]) == (["v_av1", "a_opus"], "webm")
+
+    def test_vp9_and_opus_merge_into_webm(self):
+        assert _select_best([_OPUS, _AAC, _H264, _VP9]) == (["v_vp9", "a_opus"], "webm")
+
+    def test_h264_only_source_merges_into_mp4(self):
+        assert _select_best([_AAC, _H264]) == (["v_h264", "a_aac"], "mp4")
+
+    def test_av1_without_opus_falls_back_to_h264_not_av1_in_mp4(self):
+        assert _select_best([_AAC, _H264, _AV1]) == (["v_h264", "a_aac"], "mp4")
+
+    def test_progressive_mp4_preferred_over_progressive_webm(self):
+        webm = _fmt("p_webm", "webm", "vp8", "vorbis", 360)
+        mp4 = _fmt("p_mp4", "mp4", "avc1.64001F", "mp4a.40.2", 720)
+        assert _select_best([webm, mp4]) == (["p_mp4"], "mp4")
+
+    def test_streams_without_codec_info_still_download(self):
+        progressive = _fmt("p_flv", "flv", None, None, 480)
+        assert _select_best([progressive]) == (["p_flv"], "flv")
+
+    def test_unusual_codec_pair_never_produces_mkv(self):
+        from yt_dlp.utils import get_compatible_ext
+
+        ext = get_compatible_ext(
+            vcodecs=["vp09.00.50.08"], acodecs=["mp4a.40.2"], vexts=["webm"], aexts=["m4a"],
+            preferences=BEST_VIDEO.yt_dlp_opts()["merge_output_format"].split("/"),
+        )
+        assert ext != "mkv"
 
 
 # ---------------------------------------------------------------------------

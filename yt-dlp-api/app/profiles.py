@@ -3,6 +3,8 @@
 Each profile defines:
 - ``api_value``: the string accepted in the ``format`` request field
 - ``yt_dlp_opts``: a callable returning the yt-dlp option dict fragment
+- ``filename_suffix``: text appended to the title, before the extension
+- ``faststart``: whether the final MP4 gets its index moved to the start
 
 Every caller asks the profile instead of comparing format strings.
 """
@@ -15,7 +17,7 @@ from typing import Callable
 
 @dataclass(frozen=True)
 class DownloadProfile:
-    """One download profile (e.g. mp4, mp3)."""
+    """One download profile (e.g. mp4, best_video, mp3)."""
 
     api_value: str
     # Returns yt-dlp option keys that differ between profiles.
@@ -47,16 +49,18 @@ def _mp4_opts() -> dict:
 def _best_video_opts() -> dict:
     return {
         # Original quality without re-encoding. AV1/VP9 + Opus merge into WebM, which DLNA TVs play (ADR 0001).
-        # Fallback is H.264 + AAC (MP4) for sources that offer nothing else; never MKV.
+        # AV1/VP9 without Opus deliberately falls to H.264 + AAC: the only container left for it is MP4,
+        # which the TV rejects for AV1/VP9. Progressive files come last; prefer MP4, never fail outright.
         "format": (
             "bestvideo[vcodec~='^(av01|vp9|vp09)']+bestaudio[acodec=opus]"
             "/bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]"
-            "/best[ext=webm]"
             "/best[ext=mp4]"
+            "/best[ext=webm]"
+            "/best"
         ),
-        # Ordered preference: first container that can hold the selected streams. MKV is not listed.
+        # Ordered preference: first container that can hold the selected streams. Without mkv in the
+        # list yt-dlp never picks MKV.
         "merge_output_format": "webm/mp4",
-        "postprocessor_args": {"merger": ["-movflags", "+faststart"]},
     }
 
 
@@ -73,11 +77,12 @@ def _mp3_opts() -> dict:
 
 
 MP4 = DownloadProfile(api_value="mp4", yt_dlp_opts=_mp4_opts, faststart=True)
+BEST_VIDEO = DownloadProfile(
+    api_value="best_video", yt_dlp_opts=_best_video_opts, filename_suffix=" [best]", faststart=True,
+)
 MP3 = DownloadProfile(api_value="mp3", yt_dlp_opts=_mp3_opts)
 
 # Registered profiles keyed by API value.
-BEST_VIDEO = DownloadProfile(api_value="best_video", yt_dlp_opts=_best_video_opts, filename_suffix=" [best]")
-
 PROFILES: dict[str, DownloadProfile] = {p.api_value: p for p in (MP4, BEST_VIDEO, MP3)}
 
 # Convenience: sorted list of allowed API values (for error messages).
