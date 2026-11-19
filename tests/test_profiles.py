@@ -7,6 +7,7 @@ from app.profiles import (
     PROFILES,
     DownloadProfile,
     get_profile,
+    BEST_VIDEO,
     MP3,
     MP4,
 )
@@ -22,6 +23,9 @@ class TestProfileRegistry:
 
     def test_mp3_registered(self):
         assert "mp3" in PROFILES
+
+    def test_best_video_registered(self):
+        assert "best_video" in PROFILES
 
     def test_allowed_values_sorted(self):
         assert ALLOWED_VALUES == sorted(ALLOWED_VALUES)
@@ -44,6 +48,11 @@ class TestGetProfile:
         profile = get_profile("mp3")
         assert profile is MP3
         assert profile.api_value == "mp3"
+
+    def test_best_video_lookup(self):
+        profile = get_profile("best_video")
+        assert profile is BEST_VIDEO
+        assert profile.api_value == "best_video"
 
     def test_none_returns_default(self):
         """Omitting format → default profile (mp4)."""
@@ -71,7 +80,7 @@ class TestProfileOpts:
     def test_mp4_opts_format_string(self):
         opts = MP4.yt_dlp_opts()
         assert "format" in opts
-        assert "mp4" in opts["format"]
+        assert "avc" in opts["format"]  # H.264 preference
         assert opts["merge_output_format"] == "mp4"
 
     def test_mp3_opts_postprocessors(self):
@@ -81,6 +90,51 @@ class TestProfileOpts:
             pp.get("preferredcodec") == "mp3"
             for pp in opts.get("postprocessors", [])
         )
+
+    def test_best_video_opts_format_string(self):
+        opts = BEST_VIDEO.yt_dlp_opts()
+        assert "format" in opts
+        fmt = opts["format"]
+        # Must prefer AV1 and VP9 (high quality)
+        assert "av01" in fmt
+        assert "vp9" in fmt
+        # Must never produce MKV — merge_output_format must not include mkv
+        merge = opts.get("merge_output_format", "")
+        assert "mkv" not in merge
+
+    def test_best_video_merge_output_excludes_mkv(self):
+        """Container must be webm or mp4; MKV is forbidden (HA hides it)."""
+        opts = BEST_VIDEO.yt_dlp_opts()
+        merge = opts.get("merge_output_format", "")
+        # Must mention webm (preferred for AV1/VP9+Opus)
+        assert "webm" in merge
+        assert "mkv" not in merge
+
+    def test_best_video_format_prefers_av1_over_vp9(self):
+        """AV1 selectors must appear before VP9 selectors in the format string."""
+        fmt = BEST_VIDEO.yt_dlp_opts()["format"]
+        assert fmt.index("av01") < fmt.index("vp9")
+
+    def test_best_video_includes_h264_fallback(self):
+        """Format string must include an avc/H.264 fallback for sources without AV1/VP9."""
+        fmt = BEST_VIDEO.yt_dlp_opts()["format"]
+        assert "avc" in fmt
+
+
+# ---------------------------------------------------------------------------
+# Filename suffix
+# ---------------------------------------------------------------------------
+
+class TestFilenameSuffix:
+    def test_best_video_has_suffix(self):
+        """Best Video profile must have a [best] suffix to avoid filename collisions."""
+        assert BEST_VIDEO.filename_suffix == "[best]"
+
+    def test_mp4_no_suffix(self):
+        assert MP4.filename_suffix == ""
+
+    def test_mp3_no_suffix(self):
+        assert MP3.filename_suffix == ""
 
 
 # ---------------------------------------------------------------------------
@@ -183,3 +237,19 @@ class TestEndpointFormatValidation:
                 json={"url": "https://youtube.com/watch?v=abc", "format": "mp3"},
             )
         assert resp.status_code == 202
+
+    def test_best_video_accepted(self, client):
+        """best_video format must be accepted by the API endpoint."""
+        from unittest.mock import patch
+        import app.api as api_module
+
+        with patch("app.api._run_download"):
+            resp = client.post(
+                "/download_video",
+                json={"url": "https://youtube.com/watch?v=abc", "format": "best_video"},
+            )
+        assert resp.status_code == 202
+        task_id = resp.get_json()["task_id"]
+        with api_module._tasks_lock:
+            task = api_module._tasks[task_id]
+        assert task["format"] == "best_video"

@@ -53,3 +53,23 @@ max_tasks: 10
 | `GET` | `/tasks` | List all download tasks |
 | `GET` | `/tasks/<id>` | Get status of a specific task |
 | `GET` | `/files` | List downloaded files |
+
+## Download profiles
+
+Pass `"format"` in the `POST /download_video` body to choose a profile.
+
+| `format` value | Label | Description |
+|----------------|-------|-------------|
+| `mp4` *(default)* | MP4 (compatible video) | H.264 + AAC in MP4. Plays on the widest range of devices (TVs, phones, DLNA renderers). Typically limited to 1080 p on YouTube. |
+| `best_video` | Best video (original quality) | Highest-quality video + audio the source offers, without re-encoding. AV1/VP9 + Opus streams are merged into WebM; H.264-only sources produce MP4. File is named `Title [best].webm` (or `.mp4`) to avoid collisions. **May not play on every device — use MP4 if it doesn't.** |
+| `mp3` | MP3 (compatible audio) | Audio only, converted to 192 kbps MP3. |
+
+### When to prefer MP4 over Best Video
+
+Choose **MP4 (compatible video)** when:
+- You need guaranteed playback on a Samsung TV, smart TV, or any DLNA renderer.
+- Maximum compatibility matters more than picture quality.
+
+Choose **Best video (original quality)** when:
+- You want the highest available resolution (e.g. 4K AV1) and are willing to verify playback on your device.
+- You are downloading to a PC or media player that supports modern codecs.

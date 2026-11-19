@@ -19,8 +19,10 @@ const HEALTH_CACHE_STORAGE_KEY = '_healthCache';
 const haUrlInput       = document.getElementById('haUrl');
 const haFrontendInput  = document.getElementById('haFrontendUrl');
 const videoUrlInput    = document.getElementById('videoUrl');
-const formatMp4Radio   = document.getElementById('formatMp4');
-const formatMp3Radio   = document.getElementById('formatMp3');
+const formatMp4Radio       = document.getElementById('formatMp4');
+const formatBestVideoRadio = document.getElementById('formatBestVideo');
+const formatMp3Radio       = document.getElementById('formatMp3');
+const bestVideoHint    = document.getElementById('bestVideoHint');
 const downloadBtn      = document.getElementById('downloadBtn');
 const statusEl         = document.getElementById('status');
 const statusTextEl     = document.getElementById('statusText');
@@ -178,6 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (result[STORAGE_KEY_FORMAT] === 'mp3') {
       formatMp3Radio.checked = true;
+    } else if (result[STORAGE_KEY_FORMAT] === 'best_video') {
+      formatBestVideoRadio.checked = true;
+      bestVideoHint.style.display = 'block';
     } else {
       formatMp4Radio.checked = true;
     }
@@ -206,6 +211,13 @@ cancelBtn.addEventListener('click', async () => {
   setStatus('cancelled', 'Cancelled.', { detail: 'Download stop requested.' });
   downloadBtn.disabled = false;
   cancelBtn.style.display = 'none';
+});
+
+// ── Best Video hint toggle ────────────────────────────────────────────────────
+document.querySelectorAll('input[name="format"]').forEach((radio) => {
+  radio.addEventListener('change', () => {
+    bestVideoHint.style.display = formatBestVideoRadio.checked ? 'block' : 'none';
+  });
 });
 
 // ── Settings toggle ───────────────────────────────────────────────────────────
@@ -255,7 +267,9 @@ downloadBtn.addEventListener('click', async () => {
 
   // Send only the single-video URL (strip list= / start_radio=) so only this video is downloaded
   const singleVideoUrl = toSingleVideoUrl(videoUrl);
-  const selectedFormat = formatMp3Radio.checked ? 'mp3' : 'mp4';
+  const selectedFormat = formatMp3Radio.checked ? 'mp3'
+    : formatBestVideoRadio.checked ? 'best_video'
+    : 'mp4';
 
   // Persist URLs
   const haFrontendUrl = haFrontendInput.value.trim();

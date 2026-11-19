@@ -257,8 +257,12 @@
   <div class="field">
     <label>Format</label>
     <div class="format-row">
-      <label><input type="radio" name="format" id="formatMp4" value="mp4" checked /> MP4 (video)</label>
-      <label><input type="radio" name="format" id="formatMp3" value="mp3" /> MP3 (audio only)</label>
+      <label><input type="radio" name="format" id="formatMp4" value="mp4" checked /> MP4 (compatible video)</label>
+      <label><input type="radio" name="format" id="formatBestVideo" value="best_video" /> Best video (original quality)</label>
+      <label><input type="radio" name="format" id="formatMp3" value="mp3" /> MP3 (compatible audio)</label>
+    </div>
+    <div id="bestVideoHint" style="display:none;margin-top:6px;font-size:12px;color:#795548;background:#fff8e1;border-left:3px solid #ffc107;padding:5px 8px;border-radius:3px;">
+      Original codec. May not play on every device; use MP4/MP3 if it doesn't.
     </div>
   </div>
 

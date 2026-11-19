@@ -135,8 +135,16 @@ def download_video(
             raise ValueError(f"Unknown download profile: {profile}")
         profile = resolved
 
+    # Insert the profile's filename suffix (e.g. "[best]") before the extension
+    # so "Title [best].webm" is distinct from a plain "Title.mp4" of the same video.
+    suffix = getattr(profile, "filename_suffix", "")
+    if suffix:
+        outtmpl = f"{output_dir}/%(title)s {suffix}.%(ext)s"
+    else:
+        outtmpl = f"{output_dir}/%(title)s.%(ext)s"
+
     common_opts = {
-        "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
+        "outtmpl": outtmpl,
         "quiet": True,
         "logger": _yt_dlp_logger(),
         "socket_timeout": timeout,

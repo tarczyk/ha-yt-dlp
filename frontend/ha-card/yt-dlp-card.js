@@ -389,8 +389,9 @@ class YtDlpCard extends HTMLElement {
             id="url-input"
           />
           <select class="format-select" id="format-select">
-            <option value="mp4"${this._format === "mp4" ? " selected" : ""}>MP4 (Video)</option>
-            <option value="mp3"${this._format === "mp3" ? " selected" : ""}>MP3 (Audio)</option>
+            <option value="mp4"${this._format === "mp4" ? " selected" : ""}>MP4 (compatible video)</option>
+            <option value="best_video"${this._format === "best_video" ? " selected" : ""}>Best video (original quality)</option>
+            <option value="mp3"${this._format === "mp3" ? " selected" : ""}>MP3 (compatible audio)</option>
           </select>
           <button
             class="btn-download"
@@ -404,6 +405,11 @@ class YtDlpCard extends HTMLElement {
         ${this._message ? `
           <div class="message-bar ${this._message.type}">
             ${this._esc(this._message.text)}
+          </div>` : ""}
+
+        ${this._format === "best_video" ? `
+          <div class="message-bar" style="background:#fff8e1;color:#795548;border-left:4px solid #ffc107;">
+            Original codec. May not play on every device; use MP4/MP3 if it doesn&#39;t.
           </div>` : ""}
 
         <div class="section-title">Recent Downloads</div>
