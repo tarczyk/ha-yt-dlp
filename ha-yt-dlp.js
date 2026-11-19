@@ -10,6 +10,8 @@ const DEFAULT_API_URL = "http://localhost:5000";
 const DEFAULT_TITLE = "YouTube Downloader";
 const DEFAULT_MAX_TASKS = 5;
 const POLL_INTERVAL_MS = 2000;
+// Profiles that keep the original codec; they show the compatibility hint.
+const BEST_FORMATS = ["best_video", "best_audio"];
 
 const STATUS_COLORS = {
   queued: "#9e9e9e",
@@ -395,8 +397,9 @@ class YtDlpCard extends HTMLElement {
             <option value="mp4"${this._format === "mp4" ? " selected" : ""}>MP4 (compatible video)</option>
             <option value="best_video"${this._format === "best_video" ? " selected" : ""}>Best video (original quality)</option>
             <option value="mp3"${this._format === "mp3" ? " selected" : ""}>MP3 (compatible audio)</option>
+            <option value="best_audio"${this._format === "best_audio" ? " selected" : ""}>Best audio (original quality)</option>
           </select>
-          <div class="format-hint" id="format-hint"${this._format === "best_video" ? "" : " hidden"}>Original codec. May not play on every device; use MP4/MP3 if it doesn't.</div>
+          <div class="format-hint" id="format-hint"${BEST_FORMATS.includes(this._format) ? "" : " hidden"}>Original codec. May not play on every device; use MP4/MP3 if it doesn't.</div>
           <button
             class="btn-download"
             id="btn-download"
@@ -424,7 +427,7 @@ class YtDlpCard extends HTMLElement {
     root.getElementById("format-select").addEventListener("change", (e) => {
       this._format = e.target.value;
       const hint = root.getElementById("format-hint");
-      if (hint) hint.hidden = this._format !== "best_video";
+      if (hint) hint.hidden = !BEST_FORMATS.includes(this._format);
     });
     root.getElementById("btn-download").addEventListener("click", () => {
       this._handleDownload();

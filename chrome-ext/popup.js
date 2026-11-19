@@ -23,7 +23,9 @@ const formatMp4Radio   = document.getElementById('formatMp4');
 const formatMp3Radio   = document.getElementById('formatMp3');
 const formatBestRadio  = document.getElementById('formatBest');
 const formatHint       = document.getElementById('formatHint');
-const formatRadios     = [formatMp4Radio, formatBestRadio, formatMp3Radio];
+const formatBestAudioRadio = document.getElementById('formatBestAudio');
+const formatRadios     = [formatMp4Radio, formatBestRadio, formatMp3Radio, formatBestAudioRadio];
+const BEST_FORMATS     = ['best_video', 'best_audio'];
 
 function selectedFormatValue() {
   const checked = formatRadios.find((r) => r.checked);
@@ -31,7 +33,7 @@ function selectedFormatValue() {
 }
 
 function updateFormatHint() {
-  formatHint.hidden = selectedFormatValue() !== 'best_video';
+  formatHint.hidden = !BEST_FORMATS.includes(selectedFormatValue());
 }
 formatRadios.forEach((r) => r.addEventListener('change', updateFormatHint));
 const downloadBtn      = document.getElementById('downloadBtn');

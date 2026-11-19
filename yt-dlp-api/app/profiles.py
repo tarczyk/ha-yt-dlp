@@ -17,7 +17,7 @@ from typing import Callable
 
 @dataclass(frozen=True)
 class DownloadProfile:
-    """One download profile (e.g. mp4, best_video, mp3)."""
+    """One download profile (e.g. mp4, best_video, mp3, best_audio)."""
 
     api_value: str
     # Returns yt-dlp option keys that differ between profiles.
@@ -64,6 +64,20 @@ def _best_video_opts() -> dict:
     }
 
 
+def _best_audio_opts() -> dict:
+    return {
+        # Opus first (plays on a WiiM through HA's DLNA renderer, ADR 0001); otherwise the best stream
+        # on offer, typically AAC (.m4a, hidden by HA for the WiiM).
+        "format": "bestaudio[acodec=opus]/bestaudio",
+        # preferredcodec "best" is a stream copy into an audio-only file (webm/opus -> .opus, AAC -> .m4a).
+        # Never set a codec or quality here: re-encoding would make this profile identical to MP3.
+        "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "best",
+        }],
+    }
+
+
 def _mp3_opts() -> dict:
     return {
         # Download best audio and convert to MP3.
@@ -80,10 +94,11 @@ MP4 = DownloadProfile(api_value="mp4", yt_dlp_opts=_mp4_opts, faststart=True)
 BEST_VIDEO = DownloadProfile(
     api_value="best_video", yt_dlp_opts=_best_video_opts, filename_suffix=" [best]", faststart=True,
 )
+BEST_AUDIO = DownloadProfile(api_value="best_audio", yt_dlp_opts=_best_audio_opts, filename_suffix=" [best]")
 MP3 = DownloadProfile(api_value="mp3", yt_dlp_opts=_mp3_opts)
 
 # Registered profiles keyed by API value.
-PROFILES: dict[str, DownloadProfile] = {p.api_value: p for p in (MP4, BEST_VIDEO, MP3)}
+PROFILES: dict[str, DownloadProfile] = {p.api_value: p for p in (MP4, BEST_VIDEO, MP3, BEST_AUDIO)}
 
 # Convenience: sorted list of allowed API values (for error messages).
 ALLOWED_VALUES: list[str] = sorted(PROFILES)

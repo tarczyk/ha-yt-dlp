@@ -678,3 +678,30 @@ class TestHasActiveTasks:
             api_module._tasks["t1"] = {"status": TASK_STATUS_COMPLETED, "cancelled": False}
             api_module._tasks["t2"] = {"status": TASK_STATUS_DOWNLOADING, "cancelled": False}
         assert api_module.has_active_tasks() is True
+
+
+def test_files_list_includes_opus(client, temp_download_dir):
+    (temp_download_dir / "Song [best].opus").write_bytes(b"opus")
+
+    data = client.get("/files").get_json()
+
+    assert [(i["name"], i["type"]) for i in data] == [("Song [best].opus", "opus")]
+
+
+def test_files_download_opus_mime_type(client, temp_download_dir):
+    (temp_download_dir / "Song [best].opus").write_bytes(b"opus")
+
+    response = client.get("/files/Song [best].opus")
+
+    assert response.status_code == 200
+    assert response.mimetype == "audio/ogg"
+
+
+def test_files_delete_opus(client, temp_download_dir):
+    target = temp_download_dir / "Song [best].opus"
+    target.write_bytes(b"opus")
+
+    response = client.delete("/files/Song [best].opus")
+
+    assert response.status_code == 200
+    assert not target.exists()

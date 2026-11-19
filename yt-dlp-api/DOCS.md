@@ -40,8 +40,11 @@ Downloaded files are written to `/media/<media_subdir>` inside the container, wh
 | `mp4` — MP4 (compatible video) | H.264 + AAC in `Title.mp4`, typically up to 1080p | Default. Plays on TVs and phones, including DLNA renderers. |
 | `best_video` — Best video (original quality) | Best video + audio without re-encoding, e.g. AV1/VP9 + Opus in `Title [best].webm` (4K when the source has it). `Title [best].mp4` only if the source offers nothing but H.264. Never MKV. | Highest quality. The original codec may not play on every device; use MP4 if it doesn't. |
 | `mp3` — MP3 (compatible audio) | Audio only in `Title.mp3` | Music or podcasts. |
+| `best_audio` — Best audio (original quality) | The source's best audio stream without re-encoding: Opus in `Title [best].opus` on YouTube. | Highest audio quality. Plays on a WiiM through HA's DLNA renderer. |
 
-The `[best]` suffix keeps a Best video download from overwriting an MP4 download of the same video.
+The `[best]` suffix keeps Best video and Best audio downloads from overwriting an MP4 or MP3 download of the same video.
+
+**Best audio caveat:** when the source only offers AAC, the result is `Title [best].m4a`, still without re-encoding. HA hides `.m4a` files from the WiiM's DLNA renderer, so the file will not show up there. Use the MP3 profile as the compatible fallback (see ADR 0001).
 
 ## Using with the Lovelace card
 

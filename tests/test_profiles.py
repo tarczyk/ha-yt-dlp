@@ -388,3 +388,70 @@ class TestFaststartPostProcessor:
         FastStartPP(yt_dlp.YoutubeDL({"quiet": True})).run({"filepath": str(path)})
 
         assert path.read_bytes() == b"not a real webm"
+
+
+class TestBestAudio:
+    def test_registered_and_allowed(self):
+        from app.profiles import ALLOWED_VALUES, BEST_AUDIO, get_profile
+
+        assert get_profile("best_audio") is BEST_AUDIO
+        assert "best_audio" in ALLOWED_VALUES
+
+    def test_selector_prefers_opus_then_any_best_audio(self):
+        from app.profiles import BEST_AUDIO
+
+        branches = BEST_AUDIO.yt_dlp_opts()["format"].split("/")
+        assert branches[0] == "bestaudio[acodec=opus]"
+        assert "bestaudio" in branches[1:]
+
+    def test_never_re_encodes(self):
+        """Stream copy only: 'best' keeps the source codec and sets no bitrate."""
+        from app.profiles import BEST_AUDIO
+
+        pps = BEST_AUDIO.yt_dlp_opts()["postprocessors"]
+        assert len(pps) == 1
+        assert pps[0]["key"] == "FFmpegExtractAudio"
+        assert pps[0]["preferredcodec"] == "best"
+        assert "preferredquality" not in pps[0]
+        assert BEST_AUDIO.faststart is False
+
+    def test_filename_suffix(self):
+        from app.profiles import BEST_AUDIO
+
+        assert BEST_AUDIO.filename_suffix == " [best]"
+
+    def test_outtmpl_includes_suffix(self):
+        from unittest.mock import MagicMock, patch
+
+        from app.profiles import BEST_AUDIO
+        from app.yt_dlp_manager import download_video
+
+        with patch("app.yt_dlp_manager.yt_dlp.YoutubeDL") as ydl:
+            ydl.return_value.__enter__.return_value = MagicMock(extract_info=MagicMock(return_value={}))
+            download_video("https://x", output_dir="/d", profile=BEST_AUDIO)
+        assert ydl.call_args[0][0]["outtmpl"] == "/d/%(title)s [best].%(ext)s"
+
+    def test_selector_picks_opus_over_higher_bitrate_aac(self):
+        import yt_dlp
+        from app.profiles import BEST_AUDIO
+
+        formats = [
+            _fmt("aac", "m4a", "none", "mp4a.40.2"),
+            _fmt("opus", "webm", "none", "opus"),
+        ]
+        formats[0]["abr"] = 256
+        formats[1]["abr"] = 128
+        ydl = yt_dlp.YoutubeDL({"format": BEST_AUDIO.yt_dlp_opts()["format"], "quiet": True})
+        chosen = ydl.build_format_selector(BEST_AUDIO.yt_dlp_opts()["format"])
+        picked = list(chosen({"formats": formats, "incomplete_formats": False}))
+        assert [f["format_id"] for f in picked] == ["opus"]
+
+    def test_selector_falls_back_to_aac_only_source(self):
+        import yt_dlp
+        from app.profiles import BEST_AUDIO
+
+        formats = [_fmt("aac", "m4a", "none", "mp4a.40.2")]
+        ydl = yt_dlp.YoutubeDL({"quiet": True})
+        chosen = ydl.build_format_selector(BEST_AUDIO.yt_dlp_opts()["format"])
+        picked = list(chosen({"formats": formats, "incomplete_formats": False}))
+        assert [f["format_id"] for f in picked] == ["aac"]

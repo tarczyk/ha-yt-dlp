@@ -59,7 +59,7 @@ def has_active_tasks() -> bool:
 
 DOWNLOAD_DIR = os.environ.get("DOWNLOAD_DIR", "/config/media")
 MEDIA_SUBDIR = os.environ.get("MEDIA_SUBDIR", "youtube_downloads")
-ALLOWED_EXTENSIONS = {"mp3", "mp4", "webm", "m4a", "mkv", "avi", "wav", "ogg", "flac"}
+ALLOWED_EXTENSIONS = {"mp3", "mp4", "webm", "m4a", "mkv", "avi", "wav", "ogg", "opus", "flac"}
 MIME_TYPES = {
     "mp3": "audio/mpeg",
     "mp4": "video/mp4",
@@ -69,6 +69,7 @@ MIME_TYPES = {
     "avi": "video/x-msvideo",
     "wav": "audio/wav",
     "ogg": "audio/ogg",
+    "opus": "audio/ogg",
     "flac": "audio/flac",
 }
 
