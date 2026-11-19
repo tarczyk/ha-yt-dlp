@@ -46,7 +46,9 @@ The `[best]` suffix keeps Best video and Best audio downloads from overwriting a
 
 **Best audio caveat:** when the source only offers AAC, the result is `Title [best].m4a`, still without re-encoding. HA hides `.m4a` files from the WiiM's DLNA renderer, so the file will not show up there. Use the MP3 profile as the compatible fallback (see ADR 0001).
 
-**Other sites:** Vorbis audio is kept as `Title [best].ogg`. yt-dlp cannot stream-copy every codec into an audio-only file; for such a rare source it converts to `Title [best].mp3` instead. This never happens on YouTube.
+If the source offers no audio-only stream, Best audio copies the audio track out of a video file instead (on YouTube typically AAC at a lower bitrate, again `Title [best].m4a`).
+
+**Other sites:** Vorbis audio is kept as `Title [best].ogg`. A source whose audio cannot be copied into an audio-only file (e.g. E-AC-3) fails with "Requested format is not available" rather than being converted; use the MP3 profile for it.
 
 ## Using with the Lovelace card
 

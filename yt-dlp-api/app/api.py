@@ -69,7 +69,8 @@ MIME_TYPES = {
     "avi": "video/x-msvideo",
     "wav": "audio/wav",
     "ogg": "audio/ogg",
-    "opus": "audio/opus",
+    # RFC 7845: Ogg Opus files are audio/ogg; audio/opus (RFC 7587) is the RTP payload type.
+    "opus": "audio/ogg",
     "flac": "audio/flac",
 }
 

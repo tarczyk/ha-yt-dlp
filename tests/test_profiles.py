@@ -402,7 +402,7 @@ class TestBestAudio:
 
         branches = BEST_AUDIO.yt_dlp_opts()["format"].split("/")
         assert branches[0] == "bestaudio[acodec=opus]"
-        assert "bestaudio" in branches[1:]
+        assert len(branches) > 1
 
     def test_never_re_encodes(self):
         """Stream copy only: 'best' keeps the source codec and sets no bitrate."""
@@ -432,40 +432,46 @@ class TestBestAudio:
         assert ydl.call_args[0][0]["outtmpl"] == "/d/%(title)s [best].%(ext)s"
 
     def test_selector_picks_opus_over_higher_bitrate_aac(self):
-        import yt_dlp
-        from app.profiles import BEST_AUDIO
-
         formats = [
             _fmt("aac", "m4a", "none", "mp4a.40.2"),
             _fmt("opus", "webm", "none", "opus"),
         ]
         formats[0]["abr"] = 256
         formats[1]["abr"] = 128
-        ydl = yt_dlp.YoutubeDL({"format": BEST_AUDIO.yt_dlp_opts()["format"], "quiet": True})
-        chosen = ydl.build_format_selector(BEST_AUDIO.yt_dlp_opts()["format"])
-        picked = list(chosen({"formats": formats, "incomplete_formats": False}))
-        assert [f["format_id"] for f in picked] == ["opus"]
+        assert _pick_best_audio(formats) == ["opus"]
 
     def test_selector_falls_back_to_aac_only_source(self):
-        import yt_dlp
-        from app.profiles import BEST_AUDIO
-
-        formats = [_fmt("aac", "m4a", "none", "mp4a.40.2")]
-        ydl = yt_dlp.YoutubeDL({"quiet": True})
-        chosen = ydl.build_format_selector(BEST_AUDIO.yt_dlp_opts()["format"])
-        picked = list(chosen({"formats": formats, "incomplete_formats": False}))
-        assert [f["format_id"] for f in picked] == ["aac"]
+        assert _pick_best_audio([_fmt("aac", "m4a", "none", "mp4a.40.2")]) == ["aac"]
 
     def test_selector_falls_back_to_progressive_when_no_audio_only_stream(self):
         """E.g. a YouTube SABR session that offers only format 18 (H.264 + AAC in MP4)."""
-        import yt_dlp
-        from app.profiles import BEST_AUDIO
-
         formats = [_fmt("18", "mp4", "avc1.42001E", "mp4a.40.2", height=240)]
-        ydl = yt_dlp.YoutubeDL({"quiet": True})
-        chosen = ydl.build_format_selector(BEST_AUDIO.yt_dlp_opts()["format"])
-        picked = list(chosen({"formats": formats, "incomplete_formats": False}))
-        assert [f["format_id"] for f in picked] == ["18"]
+        assert _pick_best_audio(formats) == ["18"]
+
+    def test_selector_prefers_copyable_audio_only_over_uncopyable(self):
+        formats = [
+            _fmt("vorbis", "webm", "none", "vorbis"),
+            _fmt("eac3", "mp4", "none", "ec-3"),
+        ]
+        assert _pick_best_audio(formats) == ["vorbis"]
+
+    def test_selector_rejects_source_with_only_uncopyable_audio(self):
+        """yt-dlp would re-encode such audio to MP3; failing the download keeps the no-re-encode promise."""
+        formats = [
+            _fmt("eac3", "mp4", "none", "ec-3"),
+            _fmt("prog", "mp4", "avc1.640028", "ec-3", height=1080),
+        ]
+        assert _pick_best_audio(formats) == []
+
+
+def _pick_best_audio(formats):
+    """Format ids yt-dlp would download for the Best Audio profile (formats ordered worst → best)."""
+    import yt_dlp
+    from app.profiles import BEST_AUDIO
+
+    ydl = yt_dlp.YoutubeDL({"quiet": True})
+    selector = ydl.build_format_selector(BEST_AUDIO.yt_dlp_opts()["format"])
+    return [f["format_id"] for f in selector({"formats": formats, "incomplete_formats": False})]
 
 
 class TestBestAudioPostProcessing:
@@ -499,7 +505,7 @@ class TestBestAudioPostProcessing:
         path, run_ffmpeg = self._run(tmp_path, "webm", "opus")
 
         assert path.endswith("Song [best].opus")
-        assert run_ffmpeg.call_args[0][2] == "copy"
+        assert run_ffmpeg.call_args.args[2] == "copy"
 
     def test_aac_in_m4a_is_left_untouched(self, tmp_path):
         path, run_ffmpeg = self._run(tmp_path, "m4a", "aac")
@@ -511,17 +517,10 @@ class TestBestAudioPostProcessing:
         path, run_ffmpeg = self._run(tmp_path, "webm", "vorbis")
 
         assert path.endswith("Song [best].ogg")
-        assert run_ffmpeg.call_args[0][2] == "copy"
+        assert run_ffmpeg.call_args.args[2] == "copy"
 
     def test_aac_in_progressive_mp4_is_copied_to_m4a(self, tmp_path):
         path, run_ffmpeg = self._run(tmp_path, "mp4", "aac")
 
         assert path.endswith("Song [best].m4a")
-        assert run_ffmpeg.call_args[0][2] == "copy"
-
-    def test_unknown_codec_falls_back_to_mp3_re_encode(self, tmp_path):
-        """Known yt-dlp limitation, documented in DOCS.md: never reached on YouTube."""
-        path, run_ffmpeg = self._run(tmp_path, "webm", "eac3")
-
-        assert path.endswith("Song [best].mp3")
-        assert run_ffmpeg.call_args[0][2] == "libmp3lame"
+        assert run_ffmpeg.call_args.args[2] == "copy"

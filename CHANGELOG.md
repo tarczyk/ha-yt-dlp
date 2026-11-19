@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Best Video profile (`format: "best_video"`): best video + audio without re-encoding, merged into WebM (AV1/VP9 + Opus), MP4 only for H.264-only sources, never MKV. Files are named `Title [best].<ext>`. Available in the HA card and the Chrome extension, with a compatibility hint.
-- Best Audio profile (`format: "best_audio"`): the source's best audio stream without re-encoding, `Title [best].opus` on YouTube. AAC-only sources produce `Title [best].m4a`, which HA hides from the WiiM; use MP3 there. Sources without an audio-only stream fall back to the audio of a progressive file, still copied. `.opus` files are listed, served (`audio/opus`) and deletable. Available in the HA card and the Chrome extension.
+- Best Audio profile (`format: "best_audio"`): the source's best audio stream without re-encoding, `Title [best].opus` on YouTube. AAC-only sources produce `Title [best].m4a`, which HA hides from the WiiM; use MP3 there. Sources without an audio-only stream fall back to the audio of a progressive file, still copied; audio that cannot be copied fails instead of being converted. `.opus` files are listed, served (`audio/ogg`) and deletable. Available in the HA card and the Chrome extension.
 
 ### Changed
 - MP4 profile now selects H.264 + AAC so files play on DLNA TVs (AV1/VP9 in MP4 was rejected, e.g. Samsung Q80A, UPnP error 701). MP4 downloads drop from up to 4K to H.264, typically 1080p on YouTube; 4K is available via the Best Video profile.
