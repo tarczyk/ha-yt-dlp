@@ -1,6 +1,7 @@
 name: Gemini implement issue
 
-# Runs when the "ready-for-agent" label is added to an issue.
+# Runs when the "gemini" label is added to an issue.
+# Model comes from the AGY_MODEL repository variable (shared with address-review).
 # Runs Antigravity CLI on a self-hosted runner; a separate step opens the PR.
 on:
   issues:
@@ -13,7 +14,7 @@ concurrency:
 jobs:
   implement:
     name: implement
-    if: github.event.label.name == 'ready-for-agent'
+    if: github.event.label.name == 'gemini'
     runs-on: [self-hosted, linux, agy]
     timeout-minutes: 30
     permissions:
