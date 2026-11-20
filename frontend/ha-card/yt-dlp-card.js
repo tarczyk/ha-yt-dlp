@@ -41,22 +41,80 @@ const STYLES = `
     font-family: var(--paper-font-body1_-_font-family, Roboto, sans-serif);
   }
   ha-card {
-    padding: 16px;
+    padding: 14px;
+    border-radius: 14px;
+  }
+  ha-card.compact {
+    padding: 10px;
+    border-radius: 12px;
   }
   .card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 1.2rem;
-    font-weight: 500;
-    margin-bottom: 16px;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
     color: var(--primary-text-color);
+  }
+  .card-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .card-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-subtitle {
+    font-size: 0.75rem;
+    color: var(--secondary-text-color, #888);
+  }
+  ha-card.compact .card-subtitle {
+    display: none;
+  }
+  .quick-layout {
+    display: grid;
+    gap: 10px;
+  }
+  .panel {
+    border: 1px solid var(--divider-color, #e0e0e0);
+    border-radius: 12px;
+    padding: 10px;
+    background: var(--card-background-color, #fff);
+  }
+  ha-card.compact .panel {
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .field-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--secondary-text-color, #888);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+  }
+  ha-card.compact .field-label {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+  .url-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+  ha-card.compact .url-row {
+    grid-template-columns: 1fr;
   }
   .input-row {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 16px;
   }
   .url-input {
     flex: 1;
@@ -73,23 +131,64 @@ const STYLES = `
   .url-input:focus {
     border-color: var(--primary-color, #03a9f4);
   }
-  .format-hint {
-    flex-basis: 100%;
-    font-size: 0.8em;
-    color: var(--secondary-text-color);
-  }
-  .format-select {
-    padding: 10px 8px;
+  .btn-paste {
+    padding: 0 12px;
     border: 1px solid var(--divider-color, #e0e0e0);
     border-radius: 8px;
-    font-size: 0.9rem;
     background: var(--card-background-color, #fff);
     color: var(--primary-text-color);
-    outline: none;
     cursor: pointer;
+    font-weight: 500;
+    min-width: 66px;
+  }
+  ha-card.compact .btn-paste {
+    width: 100%;
+    min-height: 36px;
+  }
+  .btn-paste:hover {
+    opacity: 0.9;
+  }
+  .format-hint {
+    font-size: 0.8em;
+    color: var(--secondary-text-color);
+    margin-top: 6px;
+  }
+  .format-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  ha-card.compact .format-chips {
+    gap: 6px;
+  }
+  .format-chip {
+    padding: 7px 10px;
+    border: 1px solid var(--divider-color, #e0e0e0);
+    border-radius: 999px;
+    font-size: 0.82rem;
+    background: var(--card-background-color, #fff);
+    color: var(--primary-text-color);
+    cursor: pointer;
+    transition: transform 0.08s ease, border-color 0.2s;
+  }
+  ha-card.compact .format-chip {
+    font-size: 0.76rem;
+    padding: 6px 8px;
+  }
+  .format-chip:hover {
+    border-color: var(--primary-color, #03a9f4);
+  }
+  .format-chip.selected {
+    border-color: var(--primary-color, #03a9f4);
+    background: color-mix(in srgb, var(--primary-color, #03a9f4) 12%, var(--card-background-color, #fff));
+    font-weight: 600;
+  }
+  .format-chip:active {
+    transform: scale(0.98);
   }
   .btn-download {
-    padding: 10px 18px;
+    width: 100%;
+    padding: 10px 14px;
     background: var(--primary-color, #03a9f4);
     color: #fff;
     border: none;
@@ -122,7 +221,6 @@ const STYLES = `
   .message-bar {
     padding: 8px 12px;
     border-radius: 8px;
-    margin-bottom: 12px;
     font-size: 0.85rem;
   }
   .message-bar.error {
@@ -139,29 +237,51 @@ const STYLES = `
     font-size: 0.85rem;
     font-weight: 500;
     color: var(--secondary-text-color, #888);
-    margin-bottom: 8px;
+    margin: 2px 0 2px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
-  .tasks-table {
-    width: 100%;
-    border-collapse: collapse;
+  .task-list {
+    display: grid;
+    gap: 8px;
+  }
+  .task-item {
+    border: 1px solid var(--divider-color, #e0e0e0);
+    border-radius: 10px;
+    padding: 9px 10px;
+    background: var(--card-background-color, #fff);
+  }
+  .task-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  ha-card.compact .task-main {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .task-title {
+    min-width: 0;
     font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .tasks-table th {
-    text-align: left;
-    padding: 6px 8px;
-    border-bottom: 2px solid var(--divider-color, #e0e0e0);
-    color: var(--secondary-text-color, #888);
-    font-weight: 500;
+  .task-meta {
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
-  .tasks-table td {
-    padding: 7px 8px;
-    border-bottom: 1px solid var(--divider-color, #e0e0e0);
-    vertical-align: middle;
-  }
-  .tasks-table tr:last-child td {
-    border-bottom: none;
+  ha-card.compact .task-meta {
+    margin-top: 6px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
   .progress-bar-wrap {
     background: var(--divider-color, #e0e0e0);
@@ -200,16 +320,19 @@ const STYLES = `
   }
   .empty-state {
     text-align: center;
-    padding: 20px 0;
+    padding: 14px 0;
     color: var(--secondary-text-color, #888);
     font-size: 0.9rem;
+    border: 1px dashed var(--divider-color, #e0e0e0);
+    border-radius: 10px;
   }
   @media (max-width: 480px) {
-    .input-row {
-      flex-direction: column;
+    .url-row {
+      grid-template-columns: 1fr;
     }
-    .btn-download {
+    .btn-paste {
       width: 100%;
+      min-height: 38px;
     }
   }
 `;
@@ -226,6 +349,8 @@ class YtDlpCard extends HTMLElement {
     this._message = null;
     this._pollHandle = null;
     this._mediaSubdir = "youtube_downloads";
+    this._compactMode = false;
+    this._resizeObserver = null;
   }
 
   static getConfigElement() {
@@ -253,10 +378,35 @@ class YtDlpCard extends HTMLElement {
 
   connectedCallback() {
     this._startPolling();
+    this._startResizeObserver();
   }
 
   disconnectedCallback() {
     this._stopPolling();
+    this._stopResizeObserver();
+  }
+
+  _startResizeObserver() {
+    if (this._resizeObserver) return;
+    this._resizeObserver = new ResizeObserver(() => this._refreshCompactMode());
+    this._resizeObserver.observe(this);
+    this._refreshCompactMode();
+  }
+
+  _stopResizeObserver() {
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
+  }
+
+  _refreshCompactMode() {
+    const width = this.getBoundingClientRect().width || this.offsetWidth || 0;
+    const next = width > 0 && width <= 460;
+    if (next !== this._compactMode) {
+      this._compactMode = next;
+      this._render();
+    }
   }
 
   _apiUrl(path) {
@@ -381,27 +531,43 @@ class YtDlpCard extends HTMLElement {
     const root = this.shadowRoot;
     root.innerHTML = `
       <style>${STYLES}</style>
-      <ha-card>
+      <ha-card class="${this._compactMode ? "compact" : ""}">
         <div class="card-header">
-          <span>📥</span>
-          <span>${this._esc(this._config.title || DEFAULT_TITLE)}</span>
+          <div class="card-title-wrap">
+            <span>📥</span>
+            <div>
+              <div class="card-title">${this._esc(this._config.title || DEFAULT_TITLE)}</div>
+              <div class="card-subtitle">Focused quick action</div>
+            </div>
+          </div>
         </div>
 
-        <div class="input-row">
-          <input
-            class="url-input"
-            type="url"
-            placeholder="https://www.youtube.com/watch?v=…"
-            value="${this._esc(this._url)}"
-            id="url-input"
-          />
-          <select class="format-select" id="format-select">
-            <option value="mp4"${this._format === "mp4" ? " selected" : ""}>MP4 (compatible video)</option>
-            <option value="best_video"${this._format === "best_video" ? " selected" : ""}>Best video (original quality)</option>
-            <option value="mp3"${this._format === "mp3" ? " selected" : ""}>MP3 (compatible audio)</option>
-            <option value="best_audio"${this._format === "best_audio" ? " selected" : ""}>Best audio (original quality)</option>
-          </select>
-          <div class="format-hint" id="format-hint"${BEST_FORMATS.includes(this._format) ? "" : " hidden"}>Original codec. May not play on every device; use MP4/MP3 if it doesn't.</div>
+        <div class="quick-layout">
+          <div class="panel">
+            <label class="field-label">YouTube URL</label>
+            <div class="url-row">
+              <input
+                class="url-input"
+                type="url"
+                placeholder="https://www.youtube.com/watch?v=…"
+                value="${this._esc(this._url)}"
+                id="url-input"
+              />
+              <button class="btn-paste" id="btn-paste" type="button">Paste</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <label class="field-label">Format</label>
+            <div class="format-chips" id="format-chips">
+              ${this._renderFormatChip("mp4", "MP4 (TV-safe)")}
+              ${this._renderFormatChip("mp3", "MP3")}
+              ${this._renderFormatChip("best_video", "Best video")}
+              ${this._renderFormatChip("best_audio", "Best audio")}
+            </div>
+            <div class="format-hint" id="format-hint"${BEST_FORMATS.includes(this._format) ? "" : " hidden"}>Original codec. May not play on every device; use MP4/MP3 if it doesn't.</div>
+          </div>
+
           <button
             class="btn-download"
             id="btn-download"
@@ -426,19 +592,46 @@ class YtDlpCard extends HTMLElement {
     root.getElementById("url-input").addEventListener("input", (e) => {
       this._url = e.target.value;
     });
-    root.getElementById("format-select").addEventListener("change", (e) => {
-      this._format = e.target.value;
-      const hint = root.getElementById("format-hint");
-      if (hint) hint.hidden = !BEST_FORMATS.includes(this._format);
+    root.querySelectorAll(".format-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        this._format = chip.dataset.format || "mp4";
+        const hint = root.getElementById("format-hint");
+        if (hint) hint.hidden = !BEST_FORMATS.includes(this._format);
+        this._render();
+      });
     });
     root.getElementById("btn-download").addEventListener("click", () => {
       this._handleDownload();
+    });
+    root.getElementById("btn-paste").addEventListener("click", async () => {
+      await this._handlePaste();
     });
     root.getElementById("url-input").addEventListener("keydown", (e) => {
       if (e.key === "Enter") this._handleDownload();
     });
 
     this._attachMediaLinks();
+  }
+
+  _renderFormatChip(value, label) {
+    return `<button type="button" class="format-chip${this._format === value ? " selected" : ""}" data-format="${this._esc(value)}">${this._esc(label)}</button>`;
+  }
+
+  async _handlePaste() {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      this._message = { type: "error", text: "Clipboard paste is not available in this browser context." };
+      this._render();
+      return;
+    }
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      this._url = text.trim();
+      this._render();
+    } catch (e) {
+      this._message = { type: "error", text: "Cannot read clipboard: " + e.message };
+      this._render();
+    }
   }
 
   _updateTasksTable() {
@@ -483,29 +676,21 @@ class YtDlpCard extends HTMLElement {
           : "—";
 
       return `
-        <tr>
-          <td title="${this._esc(t.url || "")}">${this._esc(this._truncate(t.title || t.url || "—", 28))}</td>
-          <td>
+        <div class="task-item">
+          <div class="task-main">
+            <div class="task-title" title="${this._esc(t.url || "")}">${this._esc(this._truncate(t.title || t.url || "—", 48))}</div>
             <span class="status-badge" style="background:${color}">${this._esc(label)}</span>
-            ${progressBar}
-          </td>
-          <td>${actionCell}</td>
-        </tr>
+          </div>
+          ${progressBar}
+          <div class="task-meta">
+            <span>${this._esc(taskId)}</span>
+            <span>${actionCell}</span>
+          </div>
+        </div>
       `;
     }).join("");
 
-    return `
-      <table class="tasks-table">
-        <thead>
-          <tr>
-            <th>Title / URL</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
+    return `<div class="task-list">${rows}</div>`;
   }
 
   _attachMediaLinks() {

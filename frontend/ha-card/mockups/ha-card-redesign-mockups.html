@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ha-yt-dlp card redesign mockups</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1f2937;
+      --card-soft: #263244;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --line: #334155;
+      --accent: #60a5fa;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Inter, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 0 0 24px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    }
+
+    .mockup {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(17, 24, 39, 0.8);
+      backdrop-filter: blur(4px);
+      overflow: hidden;
+      min-height: 520px;
+    }
+
+    .mockup-head {
+      border-bottom: 1px solid var(--line);
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(180deg, #111827, #0b1220);
+    }
+
+    .mockup-head h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .mockup-head span {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+    }
+
+    .inner {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .field, .panel {
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .input, .btn, .chip {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      min-height: 36px;
+      background: var(--card-soft);
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .btn {
+      cursor: default;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
+    .btn.primary {
+      background: #1d4ed8;
+      border-color: #2563eb;
+    }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { border-radius: 999px; min-height: 0; padding: 6px 10px; }
+    .chip.on { border-color: #3b82f6; background: #1e3a8a; }
+
+    .task-list { display: grid; gap: 8px; }
+    .task {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #182335;
+    }
+    .task .meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 3px 8px;
+    }
+    .ok { background: #14532d; color: #86efac; }
+    .run { background: #1e3a8a; color: #93c5fd; }
+    .err { background: #7f1d1d; color: #fca5a5; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 10px;
+    }
+
+    .kpi {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .kpi .tile {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      text-align: center;
+      background: #172133;
+    }
+    .tile b { font-size: 18px; }
+    .tile small { display: block; color: var(--muted); margin-top: 4px; }
+
+    .compact .task {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+    }
+    .compact .task .meta {
+      grid-column: 1 / -1;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 0 16px 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>ha-yt-dlp card: 3 mockups</h1>
+  <p class="subtitle">Goal: faster one-click use, better readability, clearer task state.</p>
+
+  <div class="grid">
+    <section class="mockup">
+      <div class="mockup-head">
+        <h2>A) Focused Quick Action</h2>
+        <span>Minimum clicks</span>
+      </div>
+      <div class="inner">
+        <div class="field">
+          <label>YouTube URL</label>
+          <div class="row">
+            <div class="input">https://www.youtube.com/watch?v=...</div>
+            <button class="btn">Paste</button>
+          </div>
+        </div>
+        <div class="panel">
+          <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:12px;">Format</label>
+          <div class="chips">
+            <div class="chip on">MP4 (TV-safe)</div>
+            <div class="chip">MP3</div>
+            <div class="chip">Best video</div>
+            <div class="chip">Best audio</div>
+          </div>
+        </div>
+        <button class="btn primary">Download now</button>
+        <div class="panel">
+          <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:12px;">Recent downloads</label>
+          <div class="task-list">
+            <div class="task">
+              Chill Mix 2026
+              <div class="meta"><span class="badge run">RUNNING</span><span>open | stop</span></div>
+            </div>
+            <div class="task">
+              My lecture.mp3
+              <div class="meta"><span class="badge ok">COMPLETED</span><span>open</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="hint">Best for daily use on tablet/phone: URL, format, action in one vertical flow.</p>
+    </section>
+
+    <section class="mockup">
+      <div class="mockup-head">
+        <h2>B) Dashboard Split View</h2>
+        <span>Power users</span>
+      </div>
+      <div class="inner">
+        <div class="split">
+          <div style="display:grid;gap:10px;">
+            <div class="field">
+              <label>YouTube URL</label>
+              <div class="row">
+                <div class="input">https://youtu.be/...</div>
+                <button class="btn">Paste</button>
+              </div>
+            </div>
+            <div class="panel">
+              <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:12px;">Format</label>
+              <div class="chips">
+                <div class="chip on">MP4</div>
+                <div class="chip">MP3</div>
+                <div class="chip">Best video</div>
+                <div class="chip">Best audio</div>
+              </div>
+            </div>
+            <button class="btn primary">Queue download</button>
+          </div>
+          <div class="panel">
+            <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:12px;">Session stats</label>
+            <div class="kpi">
+              <div class="tile"><b>12</b><small>today</small></div>
+              <div class="tile"><b>2</b><small>running</small></div>
+              <div class="tile"><b>95%</b><small>success</small></div>
+              <div class="tile"><b>1</b><small>failed</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:12px;">Task queue</label>
+          <div class="task-list">
+            <div class="task">Conference talk 4K<div class="meta"><span class="badge run">PROCESSING</span><span>ETA 01:35</span></div></div>
+            <div class="task">Workout mix<div class="meta"><span class="badge ok">DONE</span><span>Open media</span></div></div>
+            <div class="task">Old stream<div class="meta"><span class="badge err">FAILED</span><span>Retry</span></div></div>
+          </div>
+        </div>
+      </div>
+      <p class="hint">Best when card is wide on desktop dashboard and queue visibility matters.</p>
+    </section>
+
+    <section class="mockup compact">
+      <div class="mockup-head">
+        <h2>C) Compact Mobile + Drawer</h2>
+        <span>Small screens</span>
+      </div>
+      <div class="inner">
+        <div class="field">
+          <label>URL</label>
+          <div class="input">https://www.youtube.com/watch?v=...</div>
+        </div>
+        <div class="row" style="grid-template-columns: 1fr 1fr;">
+          <button class="btn">Paste</button>
+          <button class="btn primary">Download</button>
+        </div>
+        <div class="panel">
+          <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:12px;">Quick format</label>
+          <div class="chips">
+            <div class="chip on">MP4</div>
+            <div class="chip">MP3</div>
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:var(--accent);">More formats ▾</div>
+        </div>
+        <div class="panel">
+          <label style="display:block;margin-bottom:8px;color:var(--muted);font-size:12px;">Now running</label>
+          <div class="task">
+            Chill Beats Live
+            <div class="meta"><span class="badge run">RUNNING</span><span>Stop</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="hint">Best for phone control panel: only essentials visible, advanced options hidden.</p>
+    </section>
+  </div>
+</body>
+</html>
