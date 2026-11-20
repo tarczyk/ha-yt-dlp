@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.23] - 2026-11-20
+
+### Changed
+- Redesigned Home Assistant `yt-dlp` Lovelace card (`frontend/ha-card`) to the "Focused Quick Action" layout for faster URL -> format -> download flow.
+- Added automatic compact layout mode for narrow dashboards to improve readability and control spacing on smaller card widths.
+
 ## [1.0.22] - 2026-11-20
 
 ### Fixed
