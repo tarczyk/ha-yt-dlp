@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.22] - 2026-11-20
+
+### Fixed
+- Chrome extension popup: replaced leftover legacy color tokens with the new theme tokens so cancelled/status and system health styles render correctly in light and dark modes.
+
 ## [1.0.21] - 2026-11-20
 
 ### Changed
