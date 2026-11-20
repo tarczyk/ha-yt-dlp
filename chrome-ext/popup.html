@@ -288,7 +288,7 @@
     }
     #status.success .status-detail { color: rgba(255,255,255,0.9); }
     @media (prefers-color-scheme: dark) {
-      #status .status-detail { color: var(--md-on-surface-variant); }
+      #status .status-detail { color: var(--text-muted); }
       #status.success .status-detail { color: #81c995; }
     }
     #status a.media-link {
@@ -300,8 +300,8 @@
     #status.error .status-detail { color: #d93025; }
     #status.cancelled {
       display: block;
-      background: var(--md-surface-variant);
-      color: var(--md-on-surface-variant);
+      background: var(--surface-strong);
+      color: var(--text-muted);
     }
     #systemStatus {
       display: none; /* hidden by default; shown by renderSystemStatus */
@@ -312,11 +312,11 @@
     }
     #systemStatus.ok {
       background: #e6f4ea;
-      color: var(--md-success);
+      color: var(--success);
     }
     #systemStatus.warning {
       background: #fce8e6;
-      color: var(--md-error);
+      color: var(--error);
     }
     @media (prefers-color-scheme: dark) {
       #systemStatus.ok      { background: #0d3520; color: #81c995; }
