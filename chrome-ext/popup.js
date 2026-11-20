@@ -36,6 +36,19 @@ function updateFormatHint() {
   formatHint.hidden = !BEST_FORMATS.includes(selectedFormatValue());
 }
 formatRadios.forEach((r) => r.addEventListener('change', updateFormatHint));
+
+function setMoreFormatsOpen(open) {
+  if (!moreFormatsSection || !moreFormatsToggle) return;
+  moreFormatsSection.classList.toggle('open', open);
+  moreFormatsToggle.setAttribute('aria-expanded', String(open));
+  moreFormatsToggle.textContent = open ? 'More formats ▴' : 'More formats ▾';
+}
+
+function syncMoreFormatsForSelection() {
+  setMoreFormatsOpen(BEST_FORMATS.includes(selectedFormatValue()));
+}
+
+formatRadios.forEach((r) => r.addEventListener('change', syncMoreFormatsForSelection));
 const downloadBtn      = document.getElementById('downloadBtn');
 const statusEl         = document.getElementById('status');
 const statusTextEl     = document.getElementById('statusText');
@@ -47,6 +60,9 @@ const cancelBtn        = document.getElementById('cancelBtn');
 const settingsToggle   = document.getElementById('settingsToggle');
 const settingsPanel    = document.getElementById('settingsPanel');
 const systemStatusEl   = document.getElementById('systemStatus');
+const pasteBtn         = document.getElementById('pasteBtn');
+const moreFormatsToggle = document.getElementById('moreFormatsToggle');
+const moreFormatsSection = document.getElementById('moreFormatsSection');
 
 // ── System status (from /health) ─────────────────────────────────────────────
 
@@ -71,7 +87,7 @@ async function fetchAndRenderHealth(haUrl) {
   );
   const now = Date.now();
   if (cached && (now - cached.timestamp) < HEALTH_CACHE_TTL_MS) {
-    renderSystemStatus(cached.updateStatus);
+    renderSystemStatus(cached.serviceDegraded);
     return;
   }
 
@@ -195,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedRadio = formatRadios.find((r) => r.value === savedFormat);
     (savedRadio || formatMp4Radio).checked = true;
     updateFormatHint();
+    syncMoreFormatsForSelection();
   });
 
   // Auto-fill video URL from active YouTube tab
@@ -226,6 +243,28 @@ cancelBtn.addEventListener('click', async () => {
 settingsToggle.addEventListener('click', () => {
   settingsPanel.classList.toggle('open');
 });
+
+if (moreFormatsToggle) {
+  moreFormatsToggle.addEventListener('click', () => {
+    const isOpen = moreFormatsSection && moreFormatsSection.classList.contains('open');
+    setMoreFormatsOpen(!isOpen);
+  });
+}
+
+if (pasteBtn) {
+  pasteBtn.addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        videoUrlInput.value = text.trim();
+      }
+    } catch (_) {
+      setStatus('error', 'Paste failed.', {
+        detail: 'Allow clipboard access in Chrome and try again, or paste manually.',
+      });
+    }
+  });
+}
 
 // Persist URLs when fields lose focus
 haUrlInput.addEventListener('blur', () => {

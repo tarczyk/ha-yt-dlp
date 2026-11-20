@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.21] - 2026-11-20
+
+### Changed
+- Redesigned the Chrome extension popup with a dark header, settings icon, lighter cards, and improved light/dark theme presentation.
+- Added a `Paste` button for the video URL field and a collapsible `More formats` section for advanced format choices.
+- Kept existing download, task status/progress, cancel action, Media Browser link, and HA settings behavior intact.
+
 ## [1.0.20] - 2026-11-19
 
 ### Added

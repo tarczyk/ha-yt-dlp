@@ -6,94 +6,233 @@
   <title>HA yt-dlp Downloader</title>
   <style>
     :root {
-      --md-primary: #1a73e8;
-      --md-primary-dark: #1558b0;
-      --md-surface: #ffffff;
-      --md-surface-variant: #f1f3f4;
-      --md-on-surface: #202124;
-      --md-on-surface-variant: #5f6368;
-      --md-outline: #dadce0;
-      --md-error: #d93025;
-      --md-success: #137333;
-      --md-processing: #1a73e8;
-      --md-radius: 8px;
-      --md-radius-sm: 4px;
+      --primary: #3d73dd;
+      --primary-dark: #2e61c0;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-strong: #eef2fb;
+      --header-bg: #172c63;
+      --header-text: #ffffff;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --outline: #d8e0ef;
+      --error: #d93025;
+      --success: #137333;
+      --processing: #3d73dd;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 16px rgba(15, 23, 42, 0.06);
     }
+
     @media (prefers-color-scheme: dark) {
       :root {
-        --md-surface: #202124;
-        --md-surface-variant: #2d2f31;
-        --md-on-surface: #e8eaed;
-        --md-on-surface-variant: #9aa0a6;
-        --md-outline: #3c4043;
+        --primary: #7ea2ff;
+        --primary-dark: #6a92f6;
+        --bg: #111827;
+        --surface: #1f2937;
+        --surface-strong: #263244;
+        --header-bg: #0f1f47;
+        --header-text: #e5edff;
+        --text: #f3f4f6;
+        --text-muted: #9ca3af;
+        --outline: #334155;
+        --error: #f28b82;
+        --success: #81c995;
+        --processing: #8ab4f8;
+        --shadow: none;
       }
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      width: 350px;
-      min-height: 300px;
+      width: 380px;
+      min-height: 360px;
       font-family: "Google Sans", Roboto, Arial, sans-serif;
       font-size: 14px;
-      color: var(--md-on-surface);
-      background: var(--md-surface);
-      padding: 16px;
+      color: var(--text);
+      background: var(--bg);
+      padding: 12px;
     }
-    h1 {
-      font-size: 16px;
-      font-weight: 500;
-      margin-bottom: 16px;
+
+    .shell {
+      border: 1px solid var(--outline);
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+      min-width: 0;
     }
-    h1 svg { flex-shrink: 0; }
-    .field { margin-bottom: 12px; }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .settings-toggle {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--header-text);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      font-size: 16px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .settings-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .content {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .card {
+      border: 1px solid var(--outline);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: var(--surface);
+    }
+
+    .field { margin-bottom: 10px; }
+    .field:last-child { margin-bottom: 0; }
+
     label {
       display: block;
       font-size: 12px;
-      color: var(--md-on-surface-variant);
+      color: var(--text-muted);
       margin-bottom: 4px;
     }
-    input[type="text"], input[type="url"] {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid var(--md-outline);
-      border-radius: var(--md-radius-sm);
-      background: var(--md-surface-variant);
-      color: var(--md-on-surface);
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    input[type="text"]:focus, input[type="url"]:focus {
-      border-color: var(--md-primary);
-    }
-    .format-row {
-      display: flex;
-      gap: 16px;
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
       align-items: center;
     }
+
+    input[type="text"], input[type="url"], button, .pill-btn {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-sm);
+      background: var(--surface-strong);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      min-height: 36px;
+    }
+
+    input[type="text"]:focus, input[type="url"]:focus {
+      border-color: var(--primary);
+      background: var(--surface);
+    }
+
+    .pill-btn {
+      width: auto;
+      white-space: nowrap;
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--primary);
+      border-color: var(--outline);
+      font-weight: 500;
+    }
+    .pill-btn:hover { background: var(--surface-strong); }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .link-btn {
+      border: none;
+      background: none;
+      color: var(--primary);
+      cursor: pointer;
+      padding: 0;
+      width: auto;
+      min-height: 0;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .format-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
     .format-hint {
       font-size: 11px;
       opacity: 0.7;
       margin-top: 4px;
     }
+
     .format-row label {
       display: flex;
       align-items: center;
       gap: 6px;
       font-size: 13px;
-      color: var(--md-on-surface);
+      color: var(--text);
       cursor: pointer;
       margin-bottom: 0;
+      padding: 7px 8px;
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-sm);
+      background: var(--surface-strong);
     }
+    .format-row label input[type="radio"] {
+      width: auto;
+      min-height: 0;
+      padding: 0;
+    }
+
+    #moreFormatsSection {
+      display: none;
+      margin-top: 8px;
+    }
+    #moreFormatsSection.open {
+      display: block;
+    }
+
     button#downloadBtn {
       width: 100%;
       padding: 10px;
-      background: var(--md-primary);
+      background: var(--primary);
       color: #fff;
       border: none;
-      border-radius: var(--md-radius);
+      border-radius: var(--radius);
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
@@ -104,36 +243,37 @@
       transition: background 0.15s;
       margin-top: 4px;
     }
-    button#downloadBtn:hover { background: var(--md-primary-dark); }
+    button#downloadBtn:hover { background: var(--primary-dark); }
     button#downloadBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
     #status {
-      margin-top: 12px;
+      margin-top: 2px;
       padding: 10px 12px;
-      border-radius: var(--md-radius-sm);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-sm);
       font-size: 13px;
       display: block;
+      background: var(--surface-strong);
     }
+
     #status.idle {
-      background: var(--md-surface-variant);
-      color: var(--md-on-surface-variant);
+      color: var(--text-muted);
     }
-    @media (prefers-color-scheme: dark) {
-      #status.idle { background: var(--md-surface-variant); color: var(--md-on-surface-variant); }
-    }
+
     #status.processing {
       display: block;
       background: #e8f0fe;
-      color: var(--md-processing);
+      color: var(--processing);
     }
     #status.success {
       display: block;
       background: #e6f4ea;
-      color: var(--md-success);
+      color: var(--success);
     }
     #status.error {
       display: block;
       background: #fce8e6;
-      color: var(--md-error);
+      color: var(--error);
     }
     @media (prefers-color-scheme: dark) {
       #status.processing { background: #1a3a6b; color: #8ab4f8; }
@@ -143,7 +283,7 @@
     #status .status-detail {
       font-size: 12px;
       margin-top: 6px;
-      color: var(--md-on-surface-variant);
+      color: var(--text-muted);
       word-break: break-word;
     }
     #status.success .status-detail { color: rgba(255,255,255,0.9); }
@@ -155,7 +295,7 @@
       display: inline-block;
       margin-top: 6px;
       font-size: 12px;
-      color: var(--md-primary);
+      color: var(--primary);
     }
     #status.error .status-detail { color: #d93025; }
     #status.cancelled {
@@ -167,8 +307,8 @@
       display: none; /* hidden by default; shown by renderSystemStatus */
       font-size: 12px;
       padding: 6px 10px;
-      border-radius: var(--md-radius-sm);
-      margin-top: 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--outline);
     }
     #systemStatus.ok {
       background: #e6f4ea;
@@ -186,24 +326,26 @@
       margin-left: auto;
       padding: 4px 10px;
       font-size: 12px;
-      border: 1px solid var(--md-outline);
-      border-radius: var(--md-radius-sm);
-      background: var(--md-surface);
-      color: var(--md-on-surface);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text);
       cursor: pointer;
+      min-height: 0;
+      width: auto;
     }
-    .cancel-btn:hover { background: var(--md-surface-variant); }
+    .cancel-btn:hover { background: var(--surface-strong); }
     .progress-bar-wrap {
       margin-top: 8px;
       height: 4px;
-      background: var(--md-surface-variant);
+      background: var(--surface);
       border-radius: 2px;
       overflow: hidden;
     }
     .progress-bar {
       height: 100%;
       width: 30%;
-      background: var(--md-primary);
+      background: var(--primary);
       border-radius: 2px;
       animation: progress-indeterminate 1.2s ease-in-out infinite;
     }
@@ -223,75 +365,84 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .status-row { display: flex; align-items: center; gap: 8px; }
-    .settings-toggle {
-      font-size: 12px;
-      color: var(--md-primary);
-      cursor: pointer;
-      text-align: right;
-      margin-bottom: 8px;
-      user-select: none;
-    }
     #settingsPanel { display: none; }
     #settingsPanel.open { display: block; }
   </style>
 </head>
 <body>
-  <h1>
-    <img src="icons/icon-48.png" width="24" height="24" alt="HA yt-dlp icon" style="border-radius:5px;flex-shrink:0;" />
-    HA yt-dlp Downloader
-  </h1>
-
-  <div class="settings-toggle" id="settingsToggle">⚙ Settings</div>
-  <div id="settingsPanel">
-    <div class="field">
-      <label for="haUrl">yt-dlp API URL</label>
-      <input type="url" id="haUrl" placeholder="http://192.168.1.100:5000" />
+  <div class="shell">
+    <div class="header">
+      <div class="brand">
+        <img src="icons/icon-48.png" width="24" height="24" alt="HA yt-dlp icon" style="border-radius:5px;flex-shrink:0;" />
+        <span class="brand-title">HA yt-dlp Downloader</span>
+      </div>
+      <button type="button" class="settings-toggle" id="settingsToggle" title="Settings" aria-label="Toggle settings">⚙</button>
     </div>
-    <div class="field">
-      <label for="haFrontendUrl">HA Frontend URL (optional)</label>
-      <input type="url" id="haFrontendUrl" placeholder="http://homeassistant.local:8123" />
-      <span class="status-detail" style="margin-top:4px;display:block;">Used for &quot;Open Media Browser&quot; link when download completes.</span>
+
+    <div class="content">
+      <div class="card" id="settingsPanel">
+        <div class="field">
+          <label for="haUrl">yt-dlp API URL</label>
+          <input type="url" id="haUrl" placeholder="http://192.168.1.100:5000" />
+        </div>
+        <div class="field">
+          <label for="haFrontendUrl">HA Frontend URL (optional)</label>
+          <input type="url" id="haFrontendUrl" placeholder="http://homeassistant.local:8123" />
+          <span class="status-detail" style="margin-top:4px;display:block;">Used for &quot;Open Media Browser&quot; link when download completes.</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <label for="videoUrl">YouTube URL</label>
+          <div class="input-row">
+            <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." />
+            <button type="button" id="pasteBtn" class="pill-btn">Paste</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <span>Format</span>
+          <button type="button" id="moreFormatsToggle" class="link-btn" aria-expanded="false">More formats ▾</button>
+        </div>
+        <div class="format-row">
+          <label><input type="radio" name="format" id="formatMp4" value="mp4" checked /> MP4 (compatible video)</label>
+          <label><input type="radio" name="format" id="formatMp3" value="mp3" /> MP3 (compatible audio)</label>
+        </div>
+        <div id="moreFormatsSection">
+          <div class="format-row">
+            <label><input type="radio" name="format" id="formatBest" value="best_video" /> Best video (original quality)</label>
+            <label><input type="radio" name="format" id="formatBestAudio" value="best_audio" /> Best audio (original quality)</label>
+          </div>
+        </div>
+        <div class="format-hint" id="formatHint" hidden>Original codec. May not play on every device; use MP4/MP3 if it doesn't.</div>
+      </div>
+
+      <button id="downloadBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z"/>
+        </svg>
+        Download to HA
+      </button>
+
+      <div id="systemStatus" style="display:none;"></div>
+
+      <div id="status">
+        <div class="status-row">
+          <span class="spinner" id="spinner"></span>
+          <span id="statusText"></span>
+          <button type="button" id="cancelBtn" class="cancel-btn" style="display: none;">Cancel</button>
+        </div>
+        <div class="progress-bar-wrap" id="progressBarWrap" style="display: none;">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="status-detail" id="statusDetail"></div>
+        <a class="media-link" id="mediaLink" href="#" target="_blank" rel="noopener" style="display: none;">Open Media Browser</a>
+      </div>
     </div>
   </div>
-
-  <div class="field">
-    <label for="videoUrl">YouTube URL</label>
-    <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." />
-  </div>
-
-  <div class="field">
-    <label>Format</label>
-    <div class="format-row">
-      <label><input type="radio" name="format" id="formatMp4" value="mp4" checked /> MP4 (compatible video)</label>
-      <label><input type="radio" name="format" id="formatBest" value="best_video" /> Best video (original quality)</label>
-      <label><input type="radio" name="format" id="formatMp3" value="mp3" /> MP3 (compatible audio)</label>
-      <label><input type="radio" name="format" id="formatBestAudio" value="best_audio" /> Best audio (original quality)</label>
-    </div>
-    <div class="format-hint" id="formatHint" hidden>Original codec. May not play on every device; use MP4/MP3 if it doesn't.</div>
-  </div>
-
-  <button id="downloadBtn">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z"/>
-    </svg>
-    Download to HA
-  </button>
-
-  <div id="systemStatus" style="display:none;"></div>
-
-  <div id="status">
-    <div class="status-row">
-      <span class="spinner" id="spinner"></span>
-      <span id="statusText"></span>
-      <button type="button" id="cancelBtn" class="cancel-btn" style="display: none;">Cancel</button>
-    </div>
-    <div class="progress-bar-wrap" id="progressBarWrap" style="display: none;">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
-    <div class="status-detail" id="statusDetail"></div>
-    <a class="media-link" id="mediaLink" href="#" target="_blank" rel="noopener" style="display: none;">Open Media Browser</a>
-  </div>
-
   <script src="popup.js"></script>
 </body>
 </html>
